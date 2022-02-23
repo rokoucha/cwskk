@@ -91,10 +91,10 @@ function romajiToKana(
       const [_key, [hira, kata, han, _flag]] = lookNext
 
       kana += getKana(mode, hira, kata, han)
-
-      // もう確定するので leave-last は無視
-      romaji = ''
     }
+
+    // もう確定するので leave-last は無視
+    romaji = ''
   }
   // 今後仮名にならないなら放棄
   else if (!matchable) {
