@@ -2,6 +2,7 @@ import { download, Entries, parse } from './dictionary'
 import { Rule } from 'types/rule'
 import { ROMAJI_TABLE } from './rules/romaji'
 import {
+  CandidateTemplate,
   clearComposition,
   commitText,
   onActive,
@@ -9,11 +10,15 @@ import {
   onFocus,
   onKeyEvent,
   onMenuItemActivated,
+  setCandidates,
+  setCandidateWindowProperties,
   setComposition,
   setMenuItems,
 } from './chromeInputIme'
 
 type KanaMode = 'hiragana' | 'katakana' | 'halfkana'
+
+const LABEL = 'asdfjkl'
 
 let dict: Entries
 ;(async () => {
@@ -24,6 +29,9 @@ let dict: Entries
 
 let contextID: number
 let conversion = false
+let engineID = 'cwskk'
+
+let entries: CandidateTemplate[] = []
 
 let pending = ''
 let committable = ''
@@ -151,9 +159,20 @@ onKeyEvent.addListener(async (_engineID, e) => {
   if (conversion && e.key === 'Enter') {
     conversion = false
 
+    committable = entries.shift()?.candidate ?? committable
+
     await clearComposition({ contextID })
 
     await commitText({ contextID, text: committable + pending })
+
+    await setCandidateWindowProperties({
+      engineID: engineID,
+      properties: {
+        visible: false,
+      },
+    })
+
+    entries = []
 
     committable = ''
     pending = ''
@@ -175,23 +194,38 @@ onKeyEvent.addListener(async (_engineID, e) => {
     }
 
     const candidates = dict.get(committable)
-    if (!candidates || candidates.length === 0) {
-      // TODO: 辞書登録処理
-      alert('候補無し')
+    if (!candidates || candidates.length < 1) {
+      await setCandidateWindowProperties({
+        engineID: engineID,
+        properties: {
+          visible: false,
+        },
+      })
 
-      return true
+      entries = []
+    } else {
+      await setCandidateWindowProperties({
+        engineID: engineID,
+        properties: {
+          visible: true,
+          cursorVisible: false,
+          vertical: true,
+          pageSize: 7,
+        },
+      })
+
+      entries = candidates.map((c, i) => ({
+        annotation: c.annotation,
+        candidate: c.candidate,
+        id: i + 1,
+        label: LABEL.charAt(i),
+      }))
+
+      await setCandidates({
+        contextID,
+        candidates: entries,
+      })
     }
-
-    committable = candidates[0].candidate
-
-    conversion = false
-
-    await clearComposition({ contextID })
-
-    await commitText({ contextID, text: committable + pending })
-
-    committable = ''
-    pending = ''
 
     return true
   }

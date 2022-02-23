@@ -1,3 +1,5 @@
+export type CandidateTemplate = chrome.input.ime.CandidateTemplate
+
 export const clearComposition = (
   parameters: chrome.input.ime.ClearCompositionParameters,
 ) =>
