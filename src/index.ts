@@ -509,6 +509,14 @@ chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
         commit = hira
       }
 
+      const gleanings = ROMAJI_TABLE.find(([key]) => key === composition)
+      if (gleanings) {
+        const [_key, [hira, kata, han, _flag]] = gleanings
+
+        commit = hira
+        composition = ''
+      }
+
       willmatch = ROMAJI_TABLE.some(([key]) => key.startsWith(composition))
     } while (!willmatch && composition.length > 0)
 
