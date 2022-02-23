@@ -1,6 +1,17 @@
 import { download, Entries, parse } from './dictionary'
 import { Rule } from 'types/rule'
 import { ROMAJI_TABLE } from './rules/romaji'
+import {
+  clearComposition,
+  commitText,
+  onActive,
+  onBlur,
+  onFocus,
+  onKeyEvent,
+  onMenuItemActivated,
+  setComposition,
+  setMenuItems,
+} from 'chromeInputIme'
 
 type KanaMode = 'hiragana' | 'katakana' | 'halfkana'
 
@@ -17,7 +28,7 @@ let conversion = false
 let pending = ''
 let committable = ''
 
-chrome.input.ime.onActivate.addListener((engineID) => {
+onActive.addListener(async (engineID) => {
   const items = [
     { id: 'skk-options', label: 'SKKの設定', style: 'check' },
     { id: 'skk-separator', style: 'separator' },
@@ -25,14 +36,14 @@ chrome.input.ime.onActivate.addListener((engineID) => {
     { id: 'skk-katakana', label: 'カタカナ', style: 'radio', checked: false },
   ]
 
-  chrome.input.ime.setMenuItems({ engineID, items })
+  await setMenuItems({ engineID, items })
 })
 
-chrome.input.ime.onFocus.addListener((ctx) => {
+onFocus.addListener((ctx) => {
   contextID = ctx.contextID
 })
 
-chrome.input.ime.onBlur.addListener((_ctx) => {
+onBlur.addListener((_ctx) => {
   contextID = -1
 })
 
@@ -105,7 +116,7 @@ function romajiToKana(table: Rule, mode: KanaMode, romaji: string) {
   return { romaji, kana }
 }
 
-chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
+onKeyEvent.addListener(async (_engineID, e) => {
   if (e.type !== 'keydown') {
     return false
   }
@@ -121,9 +132,9 @@ chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
   if (conversion && e.key === 'Enter') {
     conversion = false
 
-    chrome.input.ime.clearComposition({ contextID })
+    await clearComposition({ contextID })
 
-    chrome.input.ime.commitText({ contextID, text: committable + pending })
+    await commitText({ contextID, text: committable + pending })
 
     committable = ''
     pending = ''
@@ -151,9 +162,9 @@ chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
 
     conversion = false
 
-    chrome.input.ime.clearComposition({ contextID })
+    await clearComposition({ contextID })
 
-    chrome.input.ime.commitText({ contextID, text: committable + pending })
+    await commitText({ contextID, text: committable + pending })
 
     committable = ''
     pending = ''
@@ -188,7 +199,7 @@ chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
   if (conversion) {
     const composition = '▽' + committable + pending
 
-    chrome.input.ime.setComposition({
+    await setComposition({
       contextID,
       text: composition,
       cursor: composition.length,
@@ -197,11 +208,11 @@ chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
     })
   } else {
     if (pending === '') {
-      chrome.input.ime.clearComposition({ contextID })
+      await clearComposition({ contextID })
     } else {
       const composition = pending
 
-      chrome.input.ime.setComposition({
+      await setComposition({
         contextID,
         text: composition,
         cursor: composition.length,
@@ -211,7 +222,7 @@ chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
     }
 
     if (committable !== '') {
-      chrome.input.ime.commitText({ contextID, text: committable })
+      await commitText({ contextID, text: committable })
 
       committable = ''
     }
@@ -220,7 +231,7 @@ chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
   return true
 })
 
-chrome.input.ime.onMenuItemActivated.addListener((_engineID, name) => {
+onMenuItemActivated.addListener((_engineID, name) => {
   if (name === 'skk-options') {
     window.alert('option')
     return
