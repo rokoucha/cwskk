@@ -1,51 +1,11 @@
-import { inflate } from 'pako'
 import { ROMAJI_TABLE } from './rules/romaji'
 
-async function fetchJisyo() {
-  const res = await fetch('https://skk-dev.github.io/dict/SKK-JISYO.S.gz')
-
-  const decoder = new TextDecoder('euc-jp')
-
-  const inflated = inflate(new Uint8Array(await res.arrayBuffer()))
-
-  const text = decoder.decode(inflated)
-
-  const entries = text.split('\n')
-
-  const dictionary = new Map<
-    string,
-    { candidate: string; annotation?: string }[]
-  >()
-
-  for (const entry of entries) {
-    if (entry.startsWith(';;')) continue
-
-    const splitter = entry.indexOf(' ')
-    const key = entry.slice(0, splitter)
-    const rawCandidates = entry.slice(splitter + 2, -1).split('/')
-
-    const candidates: { candidate: string; annotation?: string }[] = []
-
-    for (const rawCandidate of rawCandidates) {
-      const [candidate, annotation] = rawCandidate.split(';') as [
-        string,
-        string | undefined,
-      ]
-
-      // TODO: S式のパース処理をここに書く
-
-      candidates.push({ candidate, annotation })
-    }
-
-    dictionary.set(key, candidates)
-  }
-
-  return dictionary
-}
-
-fetchJisyo().then((d) => console.log(d))
-
 let contextID: number
+let conversion = false
+
+let romaji = ''
+let kana = ''
+let kanji = ''
 let composition = ''
 
 chrome.input.ime.onActivate.addListener((engineID) => {
@@ -84,20 +44,32 @@ chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
     return false
   }
 
-  composition += e.key
+  composition = ''
 
-  const matchable = ROMAJI_TABLE.find(([key]) => key.startsWith(composition))
-  const yomi = ROMAJI_TABLE.find(([key]) => key === composition)
+  if (e.shiftKey) {
+    composition = '▽'
+    conversion = true
+  }
+
+  if (conversion && e.key === ' ') {
+    return true
+  }
+
+  romaji += e.key.toLowerCase()
+
+  const matchable = ROMAJI_TABLE.find(([key]) => key.startsWith(romaji))
+  const yomi = ROMAJI_TABLE.find(([key]) => key === romaji)
 
   if (matchable && yomi && matchable[0] === yomi[0]) {
     const [_key, [hira, kata, han, flag]] = yomi
 
-    const commit = hira
+    kana = hira
 
-    composition = flag === 'leave-last' ? e.key : ''
+    romaji = flag === 'leave-last' ? e.key.toLowerCase() : ''
 
-    chrome.input.ime.commitText({ contextID, text: commit })
+    // chrome.input.ime.commitText({ contextID, text: commit })
 
+    /* 
     if (flag === 'leave-last') {
       chrome.input.ime.setComposition({
         contextID,
@@ -111,47 +83,60 @@ chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
     }
 
     return true
-  }
-
-  if (!matchable) {
-    let commit = ''
+    */
+  } else if (!matchable) {
     let willmatch = false
 
     do {
-      commit += composition.slice(0, 1)
-      composition = composition.slice(1)
+      const prekana = romaji.slice(0, 1)
+      romaji = romaji.slice(1)
 
       const lookNext = ROMAJI_TABLE.find(
         ([key, [_hira, _kana, _han, flag]]) =>
-          key === commit && flag === 'look-next',
+          key === prekana && flag === 'look-next',
       )
       if (lookNext) {
         const [_key, [hira, kata, han, _flag]] = lookNext
 
-        commit = hira
+        kana += hira
       }
 
-      const gleanings = ROMAJI_TABLE.find(([key]) => key === composition)
+      const gleanings = ROMAJI_TABLE.find(([key]) => key === romaji)
       if (gleanings) {
-        const [_key, [hira, kata, han, _flag]] = gleanings
+        const [_key, [hira, kata, han, flag]] = gleanings
 
-        commit = hira
-        composition = ''
+        kana += hira
+
+        romaji = flag === 'leave-last' ? e.key.toLowerCase() : ''
       }
 
-      willmatch = ROMAJI_TABLE.some(([key]) => key.startsWith(composition))
-    } while (!willmatch && composition.length > 0)
+      willmatch = ROMAJI_TABLE.some(([key]) => key.startsWith(romaji))
+    } while (!willmatch && romaji.length > 0)
 
-    chrome.input.ime.commitText({ contextID, text: commit })
+    // chrome.input.ime.commitText({ contextID, text: commit })
   }
 
-  chrome.input.ime.setComposition({
-    contextID,
-    text: composition,
-    cursor: composition.length,
-    selectionStart: 0,
-    selectionEnd: composition.length,
-  })
+  if (romaji === '') {
+    chrome.input.ime.clearComposition({ contextID })
+
+    composition = ''
+  } else {
+    composition += romaji
+
+    chrome.input.ime.setComposition({
+      contextID,
+      text: composition,
+      cursor: composition.length,
+      selectionStart: 0,
+      selectionEnd: composition.length,
+    })
+  }
+
+  if (kana !== '') {
+    chrome.input.ime.commitText({ contextID, text: kana })
+
+    kana = ''
+  }
 
   return true
 })
