@@ -57,40 +57,30 @@ chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
 
   romaji += e.key.toLowerCase()
 
+  // 今後仮名になる可能性があるか?
   const matchable = ROMAJI_TABLE.find(([key]) => key.startsWith(romaji))
+  // 今のローマ字でマッチする読みの仮名
   const yomi = ROMAJI_TABLE.find(([key]) => key === romaji)
 
+  // 最短でマッチした仮名があるなら変換
   if (matchable && yomi && matchable[0] === yomi[0]) {
     const [_key, [hira, kata, han, flag]] = yomi
 
     kana = hira
 
+    // leave-last な仮名なら最後のローマ字を残す
     romaji = flag === 'leave-last' ? e.key.toLowerCase() : ''
-
-    // chrome.input.ime.commitText({ contextID, text: commit })
-
-    /* 
-    if (flag === 'leave-last') {
-      chrome.input.ime.setComposition({
-        contextID,
-        text: composition,
-        cursor: composition.length,
-        selectionStart: 0,
-        selectionEnd: composition.length,
-      })
-    } else {
-      chrome.input.ime.clearComposition({ contextID })
-    }
-
-    return true
-    */
-  } else if (!matchable) {
+  }
+  // 今後仮名にならないなら放棄
+  else if (!matchable) {
+    let prekana = ''
     let willmatch = false
 
     do {
-      const prekana = romaji.slice(0, 1)
+      prekana += romaji.slice(0, 1)
       romaji = romaji.slice(1)
 
+      // 頭にいる look-next なローマ字を変換
       const lookNext = ROMAJI_TABLE.find(
         ([key, [_hira, _kana, _han, flag]]) =>
           key === prekana && flag === 'look-next',
@@ -101,6 +91,7 @@ chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
         kana += hira
       }
 
+      // 余計な文字が前に入ったローマ字を変換
       const gleanings = ROMAJI_TABLE.find(([key]) => key === romaji)
       if (gleanings) {
         const [_key, [hira, kata, han, flag]] = gleanings
@@ -110,10 +101,9 @@ chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
         romaji = flag === 'leave-last' ? e.key.toLowerCase() : ''
       }
 
+      // 今後仮名になる可能性が生まれる状態までループ
       willmatch = ROMAJI_TABLE.some(([key]) => key.startsWith(romaji))
     } while (!willmatch && romaji.length > 0)
-
-    // chrome.input.ime.commitText({ contextID, text: commit })
   }
 
   if (romaji === '') {
