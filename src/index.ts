@@ -7,6 +7,7 @@ import {
   commitText,
   onActive,
   onBlur,
+  onCandidateClicked,
   onFocus,
   onKeyEvent,
   onMenuItemActivated,
@@ -143,6 +144,32 @@ function romajiToKana(
   return { romaji, kana }
 }
 
+onCandidateClicked.addListener(
+  async (_engineID: string, candidateID: number, _button: string) => {
+    conversion = false
+
+    committable = entries[candidateID - 1].candidate ?? committable
+
+    await clearComposition({ contextID })
+
+    await commitText({ contextID, text: committable + pending })
+
+    await setCandidateWindowProperties({
+      engineID: engineID,
+      properties: {
+        visible: false,
+      },
+    })
+
+    entries = []
+
+    committable = ''
+    pending = ''
+
+    return true
+  },
+)
+
 onKeyEvent.addListener(async (_engineID, e) => {
   if (e.type !== 'keydown') {
     return false
@@ -226,6 +253,30 @@ onKeyEvent.addListener(async (_engineID, e) => {
         candidates: entries,
       })
     }
+
+    return true
+  }
+
+  if (conversion && entries.length > 0 && LABEL.includes(e.key)) {
+    conversion = false
+
+    committable = entries[LABEL.indexOf(e.key)].candidate ?? committable
+
+    await clearComposition({ contextID })
+
+    await commitText({ contextID, text: committable + pending })
+
+    await setCandidateWindowProperties({
+      engineID: engineID,
+      properties: {
+        visible: false,
+      },
+    })
+
+    entries = []
+
+    committable = ''
+    pending = ''
 
     return true
   }
