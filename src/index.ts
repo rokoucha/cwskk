@@ -1,4 +1,15 @@
+import { download, Entries, parse } from './dictionary'
+import { Rule } from 'types/rule'
 import { ROMAJI_TABLE } from './rules/romaji'
+
+type KanaMode = 'hiragana' | 'katakana' | 'halfkana'
+
+let dict: Entries
+;(async () => {
+  dict = parse(
+    await download('https://skk-dev.github.io/dict/SKK-JISYO.S.gz', 'euc-jp'),
+  )
+})()
 
 let contextID: number
 let conversion = false
@@ -27,49 +38,37 @@ chrome.input.ime.onBlur.addListener((_ctx) => {
   contextID = -1
 })
 
-chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
-  if (e.type !== 'keydown') {
-    return false
-  }
-
-  if (e.key.charCodeAt(0) === 0xfffd) {
-    return false
-  }
-
-  if (e.ctrlKey && e.key == 'j') {
-    return true
-  }
-
-  if (e.key.length > 1 || e.altKey || e.ctrlKey) {
-    return false
-  }
-
-  composition = ''
-
-  if (e.shiftKey) {
-    composition = '▽'
-    conversion = true
-  }
-
-  if (conversion && e.key === ' ') {
-    return true
-  }
-
-  romaji += e.key.toLowerCase()
-
+function romajiToKana(
+  table: Rule,
+  mode: KanaMode,
+  romaji: string,
+  kana: string,
+) {
   // 今後仮名になる可能性があるか?
-  const matchable = ROMAJI_TABLE.find(([key]) => key.startsWith(romaji))
+  const matchable = table.find(([key]) => key.startsWith(romaji))
   // 今のローマ字でマッチする読みの仮名
-  const yomi = ROMAJI_TABLE.find(([key]) => key === romaji)
+  const yomi = table.find(([key]) => key === romaji)
 
   // 最短でマッチした仮名があるなら変換
   if (matchable && yomi && matchable[0] === yomi[0]) {
     const [_key, [hira, kata, han, flag]] = yomi
 
-    kana = hira
+    switch (mode) {
+      case 'hiragana':
+        kana += hira
+        break
+      case 'katakana':
+        kana += kata
+        break
+      case 'halfkana':
+        kana += han
+        break
+      default:
+        const _: never = mode
+    }
 
     // leave-last な仮名なら最後のローマ字を残す
-    romaji = flag === 'leave-last' ? e.key.toLowerCase() : ''
+    romaji = flag === 'leave-last' ? romaji.slice(-1) : ''
   }
   // 今後仮名にならないなら放棄
   else if (!matchable) {
@@ -88,7 +87,19 @@ chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
       if (lookNext) {
         const [_key, [hira, kata, han, _flag]] = lookNext
 
-        kana += hira
+        switch (mode) {
+          case 'hiragana':
+            kana += hira
+            break
+          case 'katakana':
+            kana += kata
+            break
+          case 'halfkana':
+            kana += han
+            break
+          default:
+            const _: never = mode
+        }
       }
 
       // 余計な文字が前に入ったローマ字を変換
@@ -96,9 +107,22 @@ chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
       if (gleanings) {
         const [_key, [hira, kata, han, flag]] = gleanings
 
-        kana += hira
+        switch (mode) {
+          case 'hiragana':
+            kana += hira
+            break
+          case 'katakana':
+            kana += kata
+            break
+          case 'halfkana':
+            kana += han
+            break
+          default:
+            const _: never = mode
+        }
 
-        romaji = flag === 'leave-last' ? e.key.toLowerCase() : ''
+        // leave-last な仮名なら最後のローマ字を残す
+        romaji = flag === 'leave-last' ? romaji.slice(-1) : ''
       }
 
       // 今後仮名になる可能性が生まれる状態までループ
@@ -106,11 +130,81 @@ chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
     } while (!willmatch && romaji.length > 0)
   }
 
-  if (romaji === '') {
+  return [romaji, kana]
+}
+
+chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
+  if (e.type !== 'keydown') {
+    return false
+  }
+
+  if (e.key.charCodeAt(0) === 0xfffd) {
+    return false
+  }
+
+  if (e.ctrlKey && e.key == 'j') {
+    return true
+  }
+
+  if (conversion && e.key === 'Enter') {
+    conversion = false
+
     chrome.input.ime.clearComposition({ contextID })
 
-    composition = ''
-  } else {
+    chrome.input.ime.commitText({ contextID, text: kana + romaji })
+
+    kana = ''
+    romaji = ''
+
+    return true
+  }
+
+  if (conversion && e.key === ' ') {
+    // かなを確定
+    ;[romaji, kana] = romajiToKana(ROMAJI_TABLE, 'hiragana', romaji, kana)
+
+    const candidates = dict.get(kana)
+    if (!candidates || candidates.length === 0) {
+      // TODO: 辞書登録処理
+      alert('候補無し')
+
+      return true
+    }
+
+    kana = candidates[0].candidate
+
+    conversion = false
+
+    chrome.input.ime.clearComposition({ contextID })
+
+    chrome.input.ime.commitText({ contextID, text: kana + romaji })
+
+    kana = ''
+    romaji = ''
+
+    return true
+  }
+
+  if (e.key.length > 1 || e.altKey || e.ctrlKey) {
+    return false
+  }
+
+  if (!conversion && e.shiftKey) {
+    // かなを確定
+    ;[romaji, kana] = romajiToKana(ROMAJI_TABLE, 'hiragana', romaji, kana)
+
+    conversion = true
+  }
+
+  composition = conversion ? '▽' : ''
+
+  romaji += e.key.toLowerCase()
+
+  // かなを確定
+  ;[romaji, kana] = romajiToKana(ROMAJI_TABLE, 'hiragana', romaji, kana)
+
+  if (conversion) {
+    composition += kana
     composition += romaji
 
     chrome.input.ime.setComposition({
@@ -120,12 +214,28 @@ chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
       selectionStart: 0,
       selectionEnd: composition.length,
     })
-  }
+  } else {
+    if (romaji === '') {
+      chrome.input.ime.clearComposition({ contextID })
 
-  if (kana !== '') {
-    chrome.input.ime.commitText({ contextID, text: kana })
+      composition = ''
+    } else {
+      composition += romaji
 
-    kana = ''
+      chrome.input.ime.setComposition({
+        contextID,
+        text: composition,
+        cursor: composition.length,
+        selectionStart: 0,
+        selectionEnd: composition.length,
+      })
+    }
+
+    if (kana !== '') {
+      chrome.input.ime.commitText({ contextID, text: kana })
+
+      kana = ''
+    }
   }
 
   return true

@@ -32,7 +32,7 @@ export async function download(url: string, encoding: Encoding) {
   return text
 }
 
-export async function parse(text: string) {
+export function parse(text: string) {
   const rawEntries = text.split('\n')
 
   const entries: Entries = new Map()
