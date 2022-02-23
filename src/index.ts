@@ -11,7 +11,7 @@ import {
   onMenuItemActivated,
   setComposition,
   setMenuItems,
-} from 'chromeInputIme'
+} from './chromeInputIme'
 
 type KanaMode = 'hiragana' | 'katakana' | 'halfkana'
 
@@ -60,7 +60,12 @@ function getKana(mode: KanaMode, hira: string, kata: string, han: string) {
   }
 }
 
-function romajiToKana(table: Rule, mode: KanaMode, romaji: string) {
+function romajiToKana(
+  table: Rule,
+  mode: KanaMode,
+  romaji: string,
+  commit = false,
+) {
   let kana = ''
 
   // 今後仮名になる可能性があるか?
@@ -76,6 +81,20 @@ function romajiToKana(table: Rule, mode: KanaMode, romaji: string) {
 
     // leave-last な仮名なら最後のローマ字を残す
     romaji = flag === 'leave-last' ? romaji.slice(-1) : ''
+  }
+  // 確定する為に現時点で変換できる分を全て変換する
+  else if (matchable && commit) {
+    const lookNext = ROMAJI_TABLE.find(
+      ([key, [_hira, _kana, _han, _flag]]) => key === romaji,
+    )
+    if (lookNext) {
+      const [_key, [hira, kata, han, _flag]] = lookNext
+
+      kana += getKana(mode, hira, kata, han)
+
+      // もう確定するので leave-last は無視
+      romaji = ''
+    }
   }
   // 今後仮名にならないなら放棄
   else if (!matchable) {
@@ -145,7 +164,12 @@ onKeyEvent.addListener(async (_engineID, e) => {
   if (conversion && e.key === ' ') {
     // かなを確定
     {
-      const { romaji, kana } = romajiToKana(ROMAJI_TABLE, 'hiragana', pending)
+      const { romaji, kana } = romajiToKana(
+        ROMAJI_TABLE,
+        'hiragana',
+        pending,
+        true,
+      )
       committable += kana
       pending = romaji
     }
