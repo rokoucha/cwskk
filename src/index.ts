@@ -14,10 +14,8 @@ let dict: Entries
 let contextID: number
 let conversion = false
 
-let romaji = ''
-let kana = ''
-let kanji = ''
-let composition = ''
+let pending = ''
+let committable = ''
 
 chrome.input.ime.onActivate.addListener((engineID) => {
   const items = [
@@ -38,12 +36,9 @@ chrome.input.ime.onBlur.addListener((_ctx) => {
   contextID = -1
 })
 
-function romajiToKana(
-  table: Rule,
-  mode: KanaMode,
-  romaji: string,
-  kana: string,
-) {
+function romajiToKana(table: Rule, mode: KanaMode, romaji: string) {
+  let kana = ''
+
   // 今後仮名になる可能性があるか?
   const matchable = table.find(([key]) => key.startsWith(romaji))
   // 今のローマ字でマッチする読みの仮名
@@ -130,7 +125,7 @@ function romajiToKana(
     } while (!willmatch && romaji.length > 0)
   }
 
-  return [romaji, kana]
+  return { romaji, kana }
 }
 
 chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
@@ -151,19 +146,23 @@ chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
 
     chrome.input.ime.clearComposition({ contextID })
 
-    chrome.input.ime.commitText({ contextID, text: kana + romaji })
+    chrome.input.ime.commitText({ contextID, text: committable + pending })
 
-    kana = ''
-    romaji = ''
+    committable = ''
+    pending = ''
 
     return true
   }
 
   if (conversion && e.key === ' ') {
     // かなを確定
-    ;[romaji, kana] = romajiToKana(ROMAJI_TABLE, 'hiragana', romaji, kana)
+    {
+      const { romaji, kana } = romajiToKana(ROMAJI_TABLE, 'hiragana', pending)
+      committable += kana
+      pending = romaji
+    }
 
-    const candidates = dict.get(kana)
+    const candidates = dict.get(committable)
     if (!candidates || candidates.length === 0) {
       // TODO: 辞書登録処理
       alert('候補無し')
@@ -171,16 +170,16 @@ chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
       return true
     }
 
-    kana = candidates[0].candidate
+    committable = candidates[0].candidate
 
     conversion = false
 
     chrome.input.ime.clearComposition({ contextID })
 
-    chrome.input.ime.commitText({ contextID, text: kana + romaji })
+    chrome.input.ime.commitText({ contextID, text: committable + pending })
 
-    kana = ''
-    romaji = ''
+    committable = ''
+    pending = ''
 
     return true
   }
@@ -191,21 +190,26 @@ chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
 
   if (!conversion && e.shiftKey) {
     // かなを確定
-    ;[romaji, kana] = romajiToKana(ROMAJI_TABLE, 'hiragana', romaji, kana)
+    {
+      const { romaji, kana } = romajiToKana(ROMAJI_TABLE, 'hiragana', pending)
+      committable += kana
+      pending = romaji
+    }
 
     conversion = true
   }
 
-  composition = conversion ? '▽' : ''
-
-  romaji += e.key.toLowerCase()
+  pending += e.key.toLowerCase()
 
   // かなを確定
-  ;[romaji, kana] = romajiToKana(ROMAJI_TABLE, 'hiragana', romaji, kana)
+  {
+    const { romaji, kana } = romajiToKana(ROMAJI_TABLE, 'hiragana', pending)
+    committable += kana
+    pending = romaji
+  }
 
   if (conversion) {
-    composition += kana
-    composition += romaji
+    const composition = '▽' + committable + pending
 
     chrome.input.ime.setComposition({
       contextID,
@@ -215,12 +219,10 @@ chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
       selectionEnd: composition.length,
     })
   } else {
-    if (romaji === '') {
+    if (pending === '') {
       chrome.input.ime.clearComposition({ contextID })
-
-      composition = ''
     } else {
-      composition += romaji
+      const composition = pending
 
       chrome.input.ime.setComposition({
         contextID,
@@ -231,10 +233,10 @@ chrome.input.ime.onKeyEvent.addListener((_engineID, e) => {
       })
     }
 
-    if (kana !== '') {
-      chrome.input.ime.commitText({ contextID, text: kana })
+    if (committable !== '') {
+      chrome.input.ime.commitText({ contextID, text: committable })
 
-      kana = ''
+      committable = ''
     }
   }
 
