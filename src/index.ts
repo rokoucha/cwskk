@@ -36,6 +36,19 @@ chrome.input.ime.onBlur.addListener((_ctx) => {
   contextID = -1
 })
 
+function getKana(mode: KanaMode, hira: string, kata: string, han: string) {
+  switch (mode) {
+    case 'hiragana':
+      return hira
+    case 'katakana':
+      return kata
+    case 'halfkana':
+      return han
+    default:
+      const _: never = mode
+  }
+}
+
 function romajiToKana(table: Rule, mode: KanaMode, romaji: string) {
   let kana = ''
 
@@ -48,19 +61,7 @@ function romajiToKana(table: Rule, mode: KanaMode, romaji: string) {
   if (matchable && yomi && matchable[0] === yomi[0]) {
     const [_key, [hira, kata, han, flag]] = yomi
 
-    switch (mode) {
-      case 'hiragana':
-        kana += hira
-        break
-      case 'katakana':
-        kana += kata
-        break
-      case 'halfkana':
-        kana += han
-        break
-      default:
-        const _: never = mode
-    }
+    kana += getKana(mode, hira, kata, han)
 
     // leave-last な仮名なら最後のローマ字を残す
     romaji = flag === 'leave-last' ? romaji.slice(-1) : ''
@@ -82,19 +83,7 @@ function romajiToKana(table: Rule, mode: KanaMode, romaji: string) {
       if (lookNext) {
         const [_key, [hira, kata, han, _flag]] = lookNext
 
-        switch (mode) {
-          case 'hiragana':
-            kana += hira
-            break
-          case 'katakana':
-            kana += kata
-            break
-          case 'halfkana':
-            kana += han
-            break
-          default:
-            const _: never = mode
-        }
+        kana += getKana(mode, hira, kata, han)
       }
 
       // 余計な文字が前に入ったローマ字を変換
@@ -102,19 +91,7 @@ function romajiToKana(table: Rule, mode: KanaMode, romaji: string) {
       if (gleanings) {
         const [_key, [hira, kata, han, flag]] = gleanings
 
-        switch (mode) {
-          case 'hiragana':
-            kana += hira
-            break
-          case 'katakana':
-            kana += kata
-            break
-          case 'halfkana':
-            kana += han
-            break
-          default:
-            const _: never = mode
-        }
+        kana += getKana(mode, hira, kata, han)
 
         // leave-last な仮名なら最後のローマ字を残す
         romaji = flag === 'leave-last' ? romaji.slice(-1) : ''
