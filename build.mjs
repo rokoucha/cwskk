@@ -7,6 +7,7 @@ await esbuild.build({
   bundle: true,
   entryPoints: ['./src/index.ts'],
   format: 'esm',
+  logLevel: 'info',
   minify: false,
   outdir: './dist',
   platform: 'browser',
