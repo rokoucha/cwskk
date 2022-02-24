@@ -13,9 +13,16 @@ import {
   setMenuItems,
 } from './chromeInputIme'
 import type { SKK } from '../skk'
-import type { CandidateTemplate, MenuItem, SKKContainer } from '../types'
+import type {
+  CandidateTemplate,
+  MenuItem,
+  SKKContainer,
+  SKKContainerConstructor,
+} from '../types'
 
-export class ChromeSKKContainer implements SKKContainer {
+export const ChromeSKKContainer: SKKContainerConstructor = class ChromeSKKContainer
+  implements SKKContainer
+{
   skk: SKK
   engineId: string
   contextId: number

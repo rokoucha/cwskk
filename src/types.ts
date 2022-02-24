@@ -33,5 +33,5 @@ export type MenuItem = {
 
 export interface SKKContainer {}
 export interface SKKContainerConstructor {
-  new (skk: SKK): SKKContainer
+  new (skk: typeof SKK): SKKContainer
 }

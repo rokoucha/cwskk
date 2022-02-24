@@ -25,12 +25,12 @@ export type SKKIMEMethods = {
 }
 
 export class SKK {
-  committable: string
-  conversion: boolean
-  entries: CandidateTemplate[]
-  pending: string
-  dict: Entries
-  ime: SKKIMEMethods
+  private committable: string
+  private conversion: boolean
+  private entries: CandidateTemplate[]
+  private pending: string
+  private dict: Entries
+  private ime: SKKIMEMethods
 
   constructor(ime: SKKIMEMethods) {
     this.committable = ''
@@ -47,13 +47,13 @@ export class SKK {
     await this.setMenuItems()
   }
 
-  async getDict() {
+  private async getDict() {
     this.dict = parse(
       await download('https://skk-dev.github.io/dict/SKK-JISYO.S.gz', 'euc-jp'),
     )
   }
 
-  async setMenuItems() {
+  private async setMenuItems() {
     const items = [
       { id: 'skk-options', label: 'SKKの設定', style: 'check' },
       { id: 'skk-separator', style: 'separator' },
@@ -64,7 +64,7 @@ export class SKK {
     await this.ime.setMenuItems(items)
   }
 
-  getKana(mode: KanaMode, hira: string, kata: string, han: string) {
+  private getKana(mode: KanaMode, hira: string, kata: string, han: string) {
     switch (mode) {
       case 'hiragana':
         return hira
@@ -77,7 +77,12 @@ export class SKK {
     }
   }
 
-  romajiToKana(table: Rule, mode: KanaMode, romaji: string, commit = false) {
+  private romajiToKana(
+    table: Rule,
+    mode: KanaMode,
+    romaji: string,
+    commit = false,
+  ) {
     let kana = ''
 
     // 今後仮名になる可能性があるか?
