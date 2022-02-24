@@ -1,4 +1,4 @@
-import { Rule } from '../types/rule'
+import type { Rule } from '../types'
 
 export const ROMAJI_TABLE: Rule = [
   ['a', ['あ', 'ア', 'ｱ']],
