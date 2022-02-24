@@ -1,36 +1,50 @@
 import { download, parse, Entries } from './dictionary'
-import {
-  CandidateTemplate,
-  clearComposition,
-  commitText,
-  KeyboardEvent,
-  setCandidates,
-  setCandidateWindowProperties,
-  setComposition,
-} from './chromeInputIme'
 import { ROMAJI_TABLE } from './rules/romaji'
-import { KanaMode, Rule } from './types'
 import { CANDIDATE_LABEL } from './constants'
+import type { CandidateTemplate, KanaMode, MenuItem, Rule } from './types'
+
+export type SKKIMEMethods = {
+  clearComposition(): Promise<void>
+  commitText(text: string): Promise<void>
+  setCandidates(candidates: CandidateTemplate[]): Promise<void>
+  setCandidateWindowProperties(properties: {
+    cursorVisible?: boolean
+    pageSize?: number
+    vertical?: boolean
+    visible?: boolean
+  }): Promise<void>
+  setComposition(
+    text: string,
+    cursor: number,
+    properties?: {
+      selectionStart?: number | undefined
+      selectionEnd?: number | undefined
+    },
+  ): Promise<void>
+  setMenuItems(items: MenuItem[]): Promise<void>
+}
 
 export class SKK {
   committable: string
-  contextID: number
   conversion: boolean
-  engineID: string
   entries: CandidateTemplate[]
   pending: string
   dict: Entries
+  ime: SKKIMEMethods
 
-  constructor(engineID: string) {
+  constructor(ime: SKKIMEMethods) {
     this.committable = ''
-    this.contextID = -1
     this.conversion = false
-    this.engineID = engineID
     this.entries = []
     this.pending = ''
     this.dict = new Map()
 
-    this.getDict()
+    this.ime = ime
+  }
+
+  async setup() {
+    await this.getDict()
+    await this.setMenuItems()
   }
 
   async getDict() {
@@ -39,17 +53,15 @@ export class SKK {
     )
   }
 
-  setContextID(contextID: number) {
-    this.contextID = contextID
-  }
-
-  getMenuItems() {
-    return [
+  async setMenuItems() {
+    const items = [
       { id: 'skk-options', label: 'SKKの設定', style: 'check' },
       { id: 'skk-separator', style: 'separator' },
       { id: 'skk-hiragana', label: 'ひらがな', style: 'radio', checked: true },
       { id: 'skk-katakana', label: 'カタカナ', style: 'radio', checked: false },
     ]
+
+    await this.ime.setMenuItems(items)
   }
 
   getKana(mode: KanaMode, hira: string, kata: string, han: string) {
@@ -141,18 +153,12 @@ export class SKK {
     this.committable =
       this.entries[candidateID - 1].candidate ?? this.committable
 
-    await clearComposition({ contextID: this.contextID })
+    await this.ime.clearComposition()
 
-    await commitText({
-      contextID: this.contextID,
-      text: this.committable + this.pending,
-    })
+    await this.ime.commitText(this.committable + this.pending)
 
-    await setCandidateWindowProperties({
-      engineID: this.engineID,
-      properties: {
-        visible: false,
-      },
+    await this.ime.setCandidateWindowProperties({
+      visible: false,
     })
 
     this.entries = []
@@ -181,18 +187,12 @@ export class SKK {
 
       this.committable = this.entries.shift()?.candidate ?? this.committable
 
-      await clearComposition({ contextID: this.contextID })
+      await this.ime.clearComposition()
 
-      await commitText({
-        contextID: this.contextID,
-        text: this.committable + this.pending,
-      })
+      await this.ime.commitText(this.committable + this.pending)
 
-      await setCandidateWindowProperties({
-        engineID: this.engineID,
-        properties: {
-          visible: false,
-        },
+      await this.ime.setCandidateWindowProperties({
+        visible: false,
       })
 
       this.entries = []
@@ -218,23 +218,17 @@ export class SKK {
 
       const candidates = this.dict.get(this.committable)
       if (!candidates || candidates.length < 1) {
-        await setCandidateWindowProperties({
-          engineID: this.engineID,
-          properties: {
-            visible: false,
-          },
+        await this.ime.setCandidateWindowProperties({
+          visible: false,
         })
 
         this.entries = []
       } else {
-        await setCandidateWindowProperties({
-          engineID: this.engineID,
-          properties: {
-            visible: true,
-            cursorVisible: false,
-            vertical: true,
-            pageSize: 7,
-          },
+        await this.ime.setCandidateWindowProperties({
+          visible: true,
+          cursorVisible: false,
+          vertical: true,
+          pageSize: 7,
         })
 
         this.entries = candidates.map((c, i) => ({
@@ -244,10 +238,7 @@ export class SKK {
           label: CANDIDATE_LABEL.charAt(i),
         }))
 
-        await setCandidates({
-          contextID: this.contextID,
-          candidates: this.entries,
-        })
+        await this.ime.setCandidates(this.entries)
       }
 
       return true
@@ -264,18 +255,12 @@ export class SKK {
         this.entries[CANDIDATE_LABEL.indexOf(e.key)].candidate ??
         this.committable
 
-      await clearComposition({ contextID: this.contextID })
+      await this.ime.clearComposition()
 
-      await commitText({
-        contextID: this.contextID,
-        text: this.committable + this.pending,
-      })
+      await this.ime.commitText(this.committable + this.pending)
 
-      await setCandidateWindowProperties({
-        engineID: this.engineID,
-        properties: {
-          visible: false,
-        },
+      await this.ime.setCandidateWindowProperties({
+        visible: false,
       })
 
       this.entries = []
@@ -321,30 +306,24 @@ export class SKK {
     if (this.conversion) {
       const composition = '▽' + this.committable + this.pending
 
-      await setComposition({
-        contextID: this.contextID,
-        text: composition,
-        cursor: composition.length,
+      await this.ime.setComposition(composition, composition.length, {
         selectionStart: 0,
         selectionEnd: composition.length,
       })
     } else {
       if (this.pending === '') {
-        await clearComposition({ contextID: this.contextID })
+        await this.ime.clearComposition()
       } else {
         const composition = this.pending
 
-        await setComposition({
-          contextID: this.contextID,
-          text: composition,
-          cursor: composition.length,
+        await this.ime.setComposition(composition, composition.length, {
           selectionStart: 0,
           selectionEnd: composition.length,
         })
       }
 
       if (this.committable !== '') {
-        await commitText({ contextID: this.contextID, text: this.committable })
+        await this.ime.commitText(this.committable)
 
         this.committable = ''
       }

@@ -1,7 +1,3 @@
-export type CandidateTemplate = chrome.input.ime.CandidateTemplate
-
-export type KeyboardEvent = chrome.input.ime.KeyboardEvent
-
 export const clearComposition = (
   parameters: chrome.input.ime.ClearCompositionParameters,
 ) =>
