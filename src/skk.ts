@@ -94,6 +94,8 @@ export class SKK {
       return false
     }
 
+    let ignoreThisKey = false
+
     // Shift が押されたら現時点のかなを確定して変換モードにする
     if (
       !this.conversion &&
@@ -110,36 +112,6 @@ export class SKK {
       this.conversion = true
     }
 
-    // 特殊キー以外なら未確定バッファに押されたキーを追加
-    if (!ACCEPTABLE_SPECIAL_KEYS.includes(e.key)) {
-      this.pending += e.key.toLowerCase()
-    }
-
-    // かなを確定
-    {
-      const { romaji, kana } = this.romajiToKana('hiragana', this.pending)
-      this.committable += kana
-      this.pending = romaji
-    }
-
-    // Backspace の処理
-    if (e.key === 'Backspace') {
-      // 候補をクリア
-      await this.ime.setCandidateWindowProperties({
-        visible: false,
-      })
-      this.entries = []
-
-      // 未確定文字→確定文字の順に文字を削除、こちら側のバッファが全て空ならシステム側で消してもらう
-      if (this.pending.length > 0) {
-        this.pending = this.pending.slice(0, -1)
-      } else if (this.committable.length > 0) {
-        this.committable = this.committable.slice(0, -1)
-      } else {
-        return false
-      }
-    }
-
     // 変換モードの処理
     if (this.conversion) {
       // 変換を確定する
@@ -148,22 +120,19 @@ export class SKK {
 
         this.committable = this.entries.shift()?.candidate ?? this.committable
 
-        await this.ime.clearComposition()
-
-        await this.ime.commitText(this.committable + this.pending)
-
         await this.ime.setCandidateWindowProperties({
           visible: false,
         })
 
         this.entries = []
 
-        this.committable = ''
         this.pending = ''
       }
 
       // 変換候補を表示させる
       if (e.key === ' ') {
+        ignoreThisKey = true
+
         // かなを確定
         {
           const { romaji, kana } = this.romajiToKana(
@@ -203,12 +172,56 @@ export class SKK {
 
       // 変換候補から選択されたものを確定
       if (this.entries.length > 0 && CANDIDATE_LABEL.includes(e.key)) {
+        ignoreThisKey = true
+
         const selected = CANDIDATE_LABEL.indexOf(e.key)
 
         return this.onCandidateSelected(selected)
       }
     }
 
+    // 特殊キー以外なら未確定バッファに押されたキーを追加
+    if (!ACCEPTABLE_SPECIAL_KEYS.includes(e.key) && !ignoreThisKey) {
+      this.pending += e.key.toLowerCase()
+    }
+
+    // かなを確定
+    {
+      const { romaji, kana } = this.romajiToKana('hiragana', this.pending)
+      this.committable += kana
+      this.pending = romaji
+    }
+
+    // Backspace の処理
+    if (e.key === 'Backspace') {
+      // 未確定文字→確定文字の順に文字を削除、こちら側のバッファが全て空ならシステム側で消してもらう
+      if (this.pending.length > 0) {
+        this.pending = this.pending.slice(0, -1)
+      } else if (this.committable.length > 0) {
+        this.committable = this.committable.slice(0, -1)
+      } else {
+        return false
+      }
+
+      // 候補をクリア
+      await this.ime.setCandidateWindowProperties({
+        visible: false,
+      })
+      this.entries = []
+
+      // バッファが全て空になったら変換モードから離脱
+      if (this.pending.length === 0 && this.committable.length === 0) {
+        this.conversion = false
+      }
+    }
+
+    // 確定処理
+    if (e.key === 'Enter') {
+      this.committable = this.committable + this.pending
+      this.pending = ''
+    }
+
+    // 表示処理
     // 変換モードならプリエディト領域に確定可能バッファ+未確定バッファを表示
     if (this.conversion) {
       const composition = '▽' + this.committable + this.pending
