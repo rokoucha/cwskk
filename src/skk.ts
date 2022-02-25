@@ -49,11 +49,10 @@ export class SKK {
     await this.setMenuItems()
   }
 
-  public async onCandidateClicked(candidateID: number) {
+  public async onCandidateSelected(index: number) {
     this.conversion = false
 
-    this.committable =
-      this.entries[candidateID - 1].candidate ?? this.committable
+    this.committable = this.entries[index].candidate ?? this.committable
 
     await this.ime.clearComposition()
 
@@ -174,26 +173,11 @@ export class SKK {
         }
       }
 
-      // 変換候補を選択する
+      // 変換候補から選択されたものを確定
       if (this.entries.length > 0 && CANDIDATE_LABEL.includes(e.key)) {
-        this.conversion = false
+        const selected = CANDIDATE_LABEL.indexOf(e.key)
 
-        this.committable =
-          this.entries[CANDIDATE_LABEL.indexOf(e.key)].candidate ??
-          this.committable
-
-        await this.ime.clearComposition()
-
-        await this.ime.commitText(this.committable + this.pending)
-
-        await this.ime.setCandidateWindowProperties({
-          visible: false,
-        })
-
-        this.entries = []
-
-        this.committable = ''
-        this.pending = ''
+        return this.onCandidateSelected(selected)
       }
     }
 

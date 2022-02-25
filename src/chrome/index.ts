@@ -56,7 +56,7 @@ export const ChromeSKKContainer: SKKContainerConstructor = class ChromeSKKContai
 
     onCandidateClicked.addListener(
       async (_engineID: string, candidateID: number, _button: string) => {
-        return await this.skk.onCandidateClicked(candidateID)
+        return await this.skk.onCandidateSelected(candidateID - 1)
       },
     )
 
