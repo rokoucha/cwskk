@@ -1,7 +1,7 @@
 import { download, parse, Entries } from './dictionary'
 import { ROMAJI_TABLE } from './rules/romaji'
-import { CANDIDATE_LABEL } from './constants'
-import type { CandidateTemplate, KanaMode, MenuItem, Rule } from './types'
+import { ACCEPTABLE_SPECIAL_KEYS, CANDIDATE_LABEL } from './constants'
+import type { CandidateTemplate, KanaMode, MenuItem, Table } from './types'
 
 export type SKKIMEMethods = {
   clearComposition(): Promise<void>
@@ -31,7 +31,7 @@ export class SKK {
   private pending: string
   private dict: Entries
   private ime: SKKIMEMethods
-  private rule: Rule
+  private table: Table
 
   constructor(ime: SKKIMEMethods) {
     this.committable = ''
@@ -39,7 +39,7 @@ export class SKK {
     this.dict = new Map()
     this.entries = []
     this.pending = ''
-    this.rule = ROMAJI_TABLE
+    this.table = ROMAJI_TABLE
 
     this.ime = ime
   }
@@ -85,8 +85,6 @@ export class SKK {
       return true
     }
 
-    const ACCEPTABLE_SPECIAL_KEYS = ['Enter', ' ', 'Backspace']
-
     // 使わない特殊キーは処理しない
     if (
       (e.key.length > 1 && !ACCEPTABLE_SPECIAL_KEYS.includes(e.key)) ||
@@ -97,7 +95,11 @@ export class SKK {
     }
 
     // Shift が押されたら現時点のかなを確定して変換モードにする
-    if (!this.conversion && e.shiftKey) {
+    if (
+      !this.conversion &&
+      e.shiftKey &&
+      this.table.convertible.includes(e.key.toLowerCase())
+    ) {
       // かなを確定
       {
         const { romaji, kana } = this.romajiToKana('hiragana', this.pending)
@@ -282,9 +284,9 @@ export class SKK {
     let kana = ''
 
     // 今後仮名になる可能性があるか?
-    const matchable = this.rule.find(([key]) => key.startsWith(romaji))
+    const matchable = this.table.rule.find(([key]) => key.startsWith(romaji))
     // 今のローマ字でマッチする読みの仮名
-    const yomi = this.rule.find(([key]) => key === romaji)
+    const yomi = this.table.rule.find(([key]) => key === romaji)
 
     // 最短でマッチした仮名があるなら変換
     if (matchable && yomi && matchable[0] === yomi[0]) {
@@ -297,7 +299,7 @@ export class SKK {
     }
     // 確定する為に現時点で変換できる分を全て変換する
     else if (matchable && commit) {
-      const lookNext = this.rule.find(
+      const lookNext = this.table.rule.find(
         ([key, [_hira, _kana, _han, _flag]]) => key === romaji,
       )
       if (lookNext) {
@@ -319,7 +321,7 @@ export class SKK {
         romaji = romaji.slice(1)
 
         // 頭にいる look-next なローマ字を変換
-        const lookNext = this.rule.find(
+        const lookNext = this.table.rule.find(
           ([key, [_hira, _kana, _han, flag]]) =>
             key === prekana && flag === 'look-next',
         )
@@ -330,7 +332,7 @@ export class SKK {
         }
 
         // 余計な文字が前に入ったローマ字を変換
-        const gleanings = this.rule.find(([key]) => key === romaji)
+        const gleanings = this.table.rule.find(([key]) => key === romaji)
         if (gleanings) {
           const [_key, [hira, kata, han, flag]] = gleanings
 
@@ -341,7 +343,7 @@ export class SKK {
         }
 
         // 今後仮名になる可能性が生まれる状態までループ
-        willmatch = this.rule.some(([key]) => key.startsWith(romaji))
+        willmatch = this.table.rule.some(([key]) => key.startsWith(romaji))
       } while (!willmatch && romaji.length > 0)
     }
 

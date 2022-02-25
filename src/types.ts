@@ -8,6 +8,11 @@ export type Rule = [
   ),
 ][]
 
+export type Table = {
+  convertible: string[]
+  rule: Rule
+}
+
 export type KanaMode = 'hiragana' | 'katakana' | 'halfkana'
 
 export type CandidateTemplate = {
