@@ -42,117 +42,12 @@ export class SKK {
     this.ime = ime
   }
 
-  async setup() {
+  public async setup() {
     await this.getDict()
     await this.setMenuItems()
   }
 
-  private async getDict() {
-    this.dict = parse(
-      await download('https://skk-dev.github.io/dict/SKK-JISYO.S.gz', 'euc-jp'),
-    )
-  }
-
-  private async setMenuItems() {
-    const items = [
-      { id: 'skk-options', label: 'SKKの設定', style: 'check' },
-      { id: 'skk-separator', style: 'separator' },
-      { id: 'skk-hiragana', label: 'ひらがな', style: 'radio', checked: true },
-      { id: 'skk-katakana', label: 'カタカナ', style: 'radio', checked: false },
-    ]
-
-    await this.ime.setMenuItems(items)
-  }
-
-  private getKana(mode: KanaMode, hira: string, kata: string, han: string) {
-    switch (mode) {
-      case 'hiragana':
-        return hira
-      case 'katakana':
-        return kata
-      case 'halfkana':
-        return han
-      default:
-        const _: never = mode
-    }
-  }
-
-  private romajiToKana(
-    table: Rule,
-    mode: KanaMode,
-    romaji: string,
-    commit = false,
-  ) {
-    let kana = ''
-
-    // 今後仮名になる可能性があるか?
-    const matchable = table.find(([key]) => key.startsWith(romaji))
-    // 今のローマ字でマッチする読みの仮名
-    const yomi = table.find(([key]) => key === romaji)
-
-    // 最短でマッチした仮名があるなら変換
-    if (matchable && yomi && matchable[0] === yomi[0]) {
-      const [_key, [hira, kata, han, flag]] = yomi
-
-      kana += this.getKana(mode, hira, kata, han)
-
-      // leave-last な仮名なら最後のローマ字を残す
-      romaji = flag === 'leave-last' ? romaji.slice(-1) : ''
-    }
-    // 確定する為に現時点で変換できる分を全て変換する
-    else if (matchable && commit) {
-      const lookNext = ROMAJI_TABLE.find(
-        ([key, [_hira, _kana, _han, _flag]]) => key === romaji,
-      )
-      if (lookNext) {
-        const [_key, [hira, kata, han, _flag]] = lookNext
-
-        kana += this.getKana(mode, hira, kata, han)
-      }
-
-      // もう確定するので leave-last は無視
-      romaji = ''
-    }
-    // 今後仮名にならないなら放棄
-    else if (!matchable) {
-      let prekana = ''
-      let willmatch = false
-
-      do {
-        prekana += romaji.slice(0, 1)
-        romaji = romaji.slice(1)
-
-        // 頭にいる look-next なローマ字を変換
-        const lookNext = ROMAJI_TABLE.find(
-          ([key, [_hira, _kana, _han, flag]]) =>
-            key === prekana && flag === 'look-next',
-        )
-        if (lookNext) {
-          const [_key, [hira, kata, han, _flag]] = lookNext
-
-          kana += this.getKana(mode, hira, kata, han)
-        }
-
-        // 余計な文字が前に入ったローマ字を変換
-        const gleanings = ROMAJI_TABLE.find(([key]) => key === romaji)
-        if (gleanings) {
-          const [_key, [hira, kata, han, flag]] = gleanings
-
-          kana += this.getKana(mode, hira, kata, han)
-
-          // leave-last な仮名なら最後のローマ字を残す
-          romaji = flag === 'leave-last' ? romaji.slice(-1) : ''
-        }
-
-        // 今後仮名になる可能性が生まれる状態までループ
-        willmatch = ROMAJI_TABLE.some(([key]) => key.startsWith(romaji))
-      } while (!willmatch && romaji.length > 0)
-    }
-
-    return { romaji, kana }
-  }
-
-  async onCandidateClicked(candidateID: number) {
+  public async onCandidateClicked(candidateID: number) {
     this.conversion = false
 
     this.committable =
@@ -174,7 +69,7 @@ export class SKK {
     return true
   }
 
-  async onKeyEvent(e: KeyboardEvent) {
+  public async onKeyEvent(e: KeyboardEvent) {
     if (e.type !== 'keydown') {
       return false
     }
@@ -337,12 +232,117 @@ export class SKK {
     return true
   }
 
-  onMenuActivated(name: string) {
+  public onMenuActivated(name: string) {
     if (name === 'skk-options') {
       window.alert('option')
       return
     }
 
     window.alert(name)
+  }
+
+  private async getDict() {
+    this.dict = parse(
+      await download('https://skk-dev.github.io/dict/SKK-JISYO.S.gz', 'euc-jp'),
+    )
+  }
+
+  private async setMenuItems() {
+    const items = [
+      { id: 'skk-options', label: 'SKKの設定', style: 'check' },
+      { id: 'skk-separator', style: 'separator' },
+      { id: 'skk-hiragana', label: 'ひらがな', style: 'radio', checked: true },
+      { id: 'skk-katakana', label: 'カタカナ', style: 'radio', checked: false },
+    ]
+
+    await this.ime.setMenuItems(items)
+  }
+
+  private getKana(mode: KanaMode, hira: string, kata: string, han: string) {
+    switch (mode) {
+      case 'hiragana':
+        return hira
+      case 'katakana':
+        return kata
+      case 'halfkana':
+        return han
+      default:
+        const _: never = mode
+    }
+  }
+
+  private romajiToKana(
+    table: Rule,
+    mode: KanaMode,
+    romaji: string,
+    commit = false,
+  ) {
+    let kana = ''
+
+    // 今後仮名になる可能性があるか?
+    const matchable = table.find(([key]) => key.startsWith(romaji))
+    // 今のローマ字でマッチする読みの仮名
+    const yomi = table.find(([key]) => key === romaji)
+
+    // 最短でマッチした仮名があるなら変換
+    if (matchable && yomi && matchable[0] === yomi[0]) {
+      const [_key, [hira, kata, han, flag]] = yomi
+
+      kana += this.getKana(mode, hira, kata, han)
+
+      // leave-last な仮名なら最後のローマ字を残す
+      romaji = flag === 'leave-last' ? romaji.slice(-1) : ''
+    }
+    // 確定する為に現時点で変換できる分を全て変換する
+    else if (matchable && commit) {
+      const lookNext = ROMAJI_TABLE.find(
+        ([key, [_hira, _kana, _han, _flag]]) => key === romaji,
+      )
+      if (lookNext) {
+        const [_key, [hira, kata, han, _flag]] = lookNext
+
+        kana += this.getKana(mode, hira, kata, han)
+      }
+
+      // もう確定するので leave-last は無視
+      romaji = ''
+    }
+    // 今後仮名にならないなら放棄
+    else if (!matchable) {
+      let prekana = ''
+      let willmatch = false
+
+      do {
+        prekana += romaji.slice(0, 1)
+        romaji = romaji.slice(1)
+
+        // 頭にいる look-next なローマ字を変換
+        const lookNext = ROMAJI_TABLE.find(
+          ([key, [_hira, _kana, _han, flag]]) =>
+            key === prekana && flag === 'look-next',
+        )
+        if (lookNext) {
+          const [_key, [hira, kata, han, _flag]] = lookNext
+
+          kana += this.getKana(mode, hira, kata, han)
+        }
+
+        // 余計な文字が前に入ったローマ字を変換
+        const gleanings = ROMAJI_TABLE.find(([key]) => key === romaji)
+        if (gleanings) {
+          const [_key, [hira, kata, han, flag]] = gleanings
+
+          kana += this.getKana(mode, hira, kata, han)
+
+          // leave-last な仮名なら最後のローマ字を残す
+          romaji = flag === 'leave-last' ? romaji.slice(-1) : ''
+        }
+
+        // 今後仮名になる可能性が生まれる状態までループ
+        willmatch = ROMAJI_TABLE.some(([key]) => key.startsWith(romaji))
+      } while (!willmatch && romaji.length > 0)
+    }
+
+    return { romaji, kana }
   }
 }
