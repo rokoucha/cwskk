@@ -78,103 +78,16 @@ export class SKK {
       return false
     }
 
+    // FIXME: 処理するキーかどうかちゃんとチェックする
+    if (e.key.length > 5 || e.altKey || e.ctrlKey) {
+      return false
+    }
+
     if (e.ctrlKey && e.key == 'j') {
       return true
     }
 
-    if (this.conversion && e.key === 'Enter') {
-      this.conversion = false
-
-      this.committable = this.entries.shift()?.candidate ?? this.committable
-
-      await this.ime.clearComposition()
-
-      await this.ime.commitText(this.committable + this.pending)
-
-      await this.ime.setCandidateWindowProperties({
-        visible: false,
-      })
-
-      this.entries = []
-
-      this.committable = ''
-      this.pending = ''
-
-      return true
-    }
-
-    if (this.conversion && e.key === ' ') {
-      // かなを確定
-      {
-        const { romaji, kana } = this.romajiToKana(
-          ROMAJI_TABLE,
-          'hiragana',
-          this.pending,
-          true,
-        )
-        this.committable += kana
-        this.pending = romaji
-      }
-
-      const candidates = this.dict.get(this.committable)
-      if (!candidates || candidates.length < 1) {
-        await this.ime.setCandidateWindowProperties({
-          visible: false,
-        })
-
-        this.entries = []
-      } else {
-        await this.ime.setCandidateWindowProperties({
-          visible: true,
-          cursorVisible: false,
-          vertical: true,
-          pageSize: 7,
-        })
-
-        this.entries = candidates.map((c, i) => ({
-          annotation: c.annotation,
-          candidate: c.candidate,
-          id: i + 1,
-          label: CANDIDATE_LABEL.charAt(i),
-        }))
-
-        await this.ime.setCandidates(this.entries)
-      }
-
-      return true
-    }
-
-    if (
-      this.conversion &&
-      this.entries.length > 0 &&
-      CANDIDATE_LABEL.includes(e.key)
-    ) {
-      this.conversion = false
-
-      this.committable =
-        this.entries[CANDIDATE_LABEL.indexOf(e.key)].candidate ??
-        this.committable
-
-      await this.ime.clearComposition()
-
-      await this.ime.commitText(this.committable + this.pending)
-
-      await this.ime.setCandidateWindowProperties({
-        visible: false,
-      })
-
-      this.entries = []
-
-      this.committable = ''
-      this.pending = ''
-
-      return true
-    }
-
-    if (e.key.length > 1 || e.altKey || e.ctrlKey) {
-      return false
-    }
-
+    // Shift が押されたら現時点のかなを確定して変換モードにする
     if (!this.conversion && e.shiftKey) {
       // かなを確定
       {
@@ -190,7 +103,10 @@ export class SKK {
       this.conversion = true
     }
 
-    this.pending += e.key.toLowerCase()
+    // 特殊キー以外なら未確定バッファに押されたキーを追加
+    if (e.key.length <= 1 && e.key !== ' ') {
+      this.pending += e.key.toLowerCase()
+    }
 
     // かなを確定
     {
@@ -203,6 +119,92 @@ export class SKK {
       this.pending = romaji
     }
 
+    // 変換モードの処理
+    if (this.conversion) {
+      // 変換を確定する
+      if (e.key === 'Enter') {
+        this.conversion = false
+
+        this.committable = this.entries.shift()?.candidate ?? this.committable
+
+        await this.ime.clearComposition()
+
+        await this.ime.commitText(this.committable + this.pending)
+
+        await this.ime.setCandidateWindowProperties({
+          visible: false,
+        })
+
+        this.entries = []
+
+        this.committable = ''
+        this.pending = ''
+      }
+
+      // 変換候補を表示させる
+      if (e.key === ' ') {
+        // かなを確定
+        {
+          const { romaji, kana } = this.romajiToKana(
+            ROMAJI_TABLE,
+            'hiragana',
+            this.pending,
+            true,
+          )
+          this.committable += kana
+          this.pending = romaji
+        }
+
+        const candidates = this.dict.get(this.committable)
+        if (!candidates || candidates.length < 1) {
+          await this.ime.setCandidateWindowProperties({
+            visible: false,
+          })
+
+          this.entries = []
+        } else {
+          await this.ime.setCandidateWindowProperties({
+            visible: true,
+            cursorVisible: false,
+            vertical: true,
+            pageSize: 7,
+          })
+
+          this.entries = candidates.map((c, i) => ({
+            annotation: c.annotation,
+            candidate: c.candidate,
+            id: i + 1,
+            label: CANDIDATE_LABEL.charAt(i),
+          }))
+
+          await this.ime.setCandidates(this.entries)
+        }
+      }
+
+      // 変換候補を選択する
+      if (this.entries.length > 0 && CANDIDATE_LABEL.includes(e.key)) {
+        this.conversion = false
+
+        this.committable =
+          this.entries[CANDIDATE_LABEL.indexOf(e.key)].candidate ??
+          this.committable
+
+        await this.ime.clearComposition()
+
+        await this.ime.commitText(this.committable + this.pending)
+
+        await this.ime.setCandidateWindowProperties({
+          visible: false,
+        })
+
+        this.entries = []
+
+        this.committable = ''
+        this.pending = ''
+      }
+    }
+
+    // 変換モードならプリエディト領域に確定可能バッファ+未確定バッファを表示
     if (this.conversion) {
       const composition = '▽' + this.committable + this.pending
 
@@ -210,7 +212,9 @@ export class SKK {
         selectionStart: 0,
         selectionEnd: composition.length,
       })
-    } else {
+    }
+    // 直接モードなら確定可能バッファを確定して空にし未確定バッファをプリエディトに表示
+    else {
       if (this.pending === '') {
         await this.ime.clearComposition()
       } else {
