@@ -79,13 +79,21 @@ export class SKK {
       return false
     }
 
-    // FIXME: 処理するキーかどうかちゃんとチェックする
-    if (e.key.length > 5 || e.altKey || e.ctrlKey) {
-      return false
-    }
-
+    // C-j は握り潰す
+    // TODO: あとで Enter と同一扱いにする
     if (e.ctrlKey && e.key == 'j') {
       return true
+    }
+
+    const ACCEPTABLE_SPECIAL_KEYS = ['Enter', ' ', 'Backspace']
+
+    // 使わない特殊キーは処理しない
+    if (
+      (e.key.length > 1 && !ACCEPTABLE_SPECIAL_KEYS.includes(e.key)) ||
+      e.altKey ||
+      e.ctrlKey
+    ) {
+      return false
     }
 
     // Shift が押されたら現時点のかなを確定して変換モードにする
@@ -101,7 +109,7 @@ export class SKK {
     }
 
     // 特殊キー以外なら未確定バッファに押されたキーを追加
-    if (e.key.length <= 1 && e.key !== ' ') {
+    if (!ACCEPTABLE_SPECIAL_KEYS.includes(e.key)) {
       this.pending += e.key.toLowerCase()
     }
 
@@ -110,6 +118,24 @@ export class SKK {
       const { romaji, kana } = this.romajiToKana('hiragana', this.pending)
       this.committable += kana
       this.pending = romaji
+    }
+
+    // Backspace の処理
+    if (e.key === 'Backspace') {
+      // 候補をクリア
+      await this.ime.setCandidateWindowProperties({
+        visible: false,
+      })
+      this.entries = []
+
+      // 未確定文字→確定文字の順に文字を削除、こちら側のバッファが全て空ならシステム側で消してもらう
+      if (this.pending.length > 0) {
+        this.pending = this.pending.slice(0, -1)
+      } else if (this.committable.length > 0) {
+        this.committable = this.committable.slice(0, -1)
+      } else {
+        return false
+      }
     }
 
     // 変換モードの処理
