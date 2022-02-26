@@ -27,10 +27,11 @@ export type SKKIMEMethods = {
 export class SKK {
   private committable: string
   private conversion: boolean
-  private entries: CandidateTemplate[]
-  private pending: string
   private dict: Entries
+  private entries: CandidateTemplate[]
   private ime: SKKIMEMethods
+  private kanaMode: KanaMode
+  private pending: string
   private table: Table
 
   constructor(ime: SKKIMEMethods) {
@@ -38,6 +39,7 @@ export class SKK {
     this.conversion = false
     this.dict = new Map()
     this.entries = []
+    this.kanaMode = 'hiragana'
     this.pending = ''
     this.table = ROMAJI_TABLE
 
@@ -103,11 +105,7 @@ export class SKK {
       this.table.convertible.includes(e.key.toLowerCase())
     ) {
       // かなを確定
-      {
-        const { romaji, kana } = this.romajiToKana('hiragana', this.pending)
-        this.committable += kana
-        this.pending = romaji
-      }
+      this.romajiToKana()
 
       this.conversion = true
     }
@@ -134,15 +132,7 @@ export class SKK {
         ignoreThisKey = true
 
         // かなを確定
-        {
-          const { romaji, kana } = this.romajiToKana(
-            'hiragana',
-            this.pending,
-            true,
-          )
-          this.committable += kana
-          this.pending = romaji
-        }
+        this.romajiToKana(true)
 
         const candidates = this.dict.get(this.committable)
         if (!candidates || candidates.length < 1) {
@@ -186,11 +176,7 @@ export class SKK {
     }
 
     // かなを確定
-    {
-      const { romaji, kana } = this.romajiToKana('hiragana', this.pending)
-      this.committable += kana
-      this.pending = romaji
-    }
+    this.romajiToKana()
 
     // Backspace の処理
     if (e.key === 'Backspace') {
@@ -280,8 +266,8 @@ export class SKK {
     await this.ime.setMenuItems(items)
   }
 
-  private getKana(mode: KanaMode, hira: string, kata: string, han: string) {
-    switch (mode) {
+  private getKana(hira: string, kata: string, han: string) {
+    switch (this.kanaMode) {
       case 'hiragana':
         return hira
       case 'katakana':
@@ -289,40 +275,40 @@ export class SKK {
       case 'halfkana':
         return han
       default:
-        const _: never = mode
+        const _: never = this.kanaMode
     }
   }
 
-  private romajiToKana(mode: KanaMode, romaji: string, commit = false) {
-    let kana = ''
-
+  private romajiToKana(commit = false) {
     // 今後仮名になる可能性があるか?
-    const matchable = this.table.rule.find(([key]) => key.startsWith(romaji))
+    const matchable = this.table.rule.find(([key]) =>
+      key.startsWith(this.pending),
+    )
     // 今のローマ字でマッチする読みの仮名
-    const yomi = this.table.rule.find(([key]) => key === romaji)
+    const yomi = this.table.rule.find(([key]) => key === this.pending)
 
     // 最短でマッチした仮名があるなら変換
     if (matchable && yomi && matchable[0] === yomi[0]) {
       const [_key, [hira, kata, han, flag]] = yomi
 
-      kana += this.getKana(mode, hira, kata, han)
+      this.committable += this.getKana(hira, kata, han)
 
       // leave-last な仮名なら最後のローマ字を残す
-      romaji = flag === 'leave-last' ? romaji.slice(-1) : ''
+      this.pending = flag === 'leave-last' ? this.pending.slice(-1) : ''
     }
     // 確定する為に現時点で変換できる分を全て変換する
     else if (matchable && commit) {
       const lookNext = this.table.rule.find(
-        ([key, [_hira, _kana, _han, _flag]]) => key === romaji,
+        ([key, [_hira, _kana, _han, _flag]]) => key === this.pending,
       )
       if (lookNext) {
         const [_key, [hira, kata, han, _flag]] = lookNext
 
-        kana += this.getKana(mode, hira, kata, han)
+        this.committable += this.getKana(hira, kata, han)
       }
 
       // もう確定するので leave-last は無視
-      romaji = ''
+      this.pending = ''
     }
     // 今後仮名にならないなら放棄
     else if (!matchable) {
@@ -330,8 +316,8 @@ export class SKK {
       let willmatch = false
 
       do {
-        prekana += romaji.slice(0, 1)
-        romaji = romaji.slice(1)
+        prekana += this.pending.slice(0, 1)
+        this.pending = this.pending.slice(1)
 
         // 頭にいる look-next なローマ字を変換
         const lookNext = this.table.rule.find(
@@ -341,25 +327,25 @@ export class SKK {
         if (lookNext) {
           const [_key, [hira, kata, han, _flag]] = lookNext
 
-          kana += this.getKana(mode, hira, kata, han)
+          this.committable += this.getKana(hira, kata, han)
         }
 
         // 余計な文字が前に入ったローマ字を変換
-        const gleanings = this.table.rule.find(([key]) => key === romaji)
+        const gleanings = this.table.rule.find(([key]) => key === this.pending)
         if (gleanings) {
           const [_key, [hira, kata, han, flag]] = gleanings
 
-          kana += this.getKana(mode, hira, kata, han)
+          this.committable += this.getKana(hira, kata, han)
 
           // leave-last な仮名なら最後のローマ字を残す
-          romaji = flag === 'leave-last' ? romaji.slice(-1) : ''
+          this.pending = flag === 'leave-last' ? this.pending.slice(-1) : ''
         }
 
         // 今後仮名になる可能性が生まれる状態までループ
-        willmatch = this.table.rule.some(([key]) => key.startsWith(romaji))
-      } while (!willmatch && romaji.length > 0)
+        willmatch = this.table.rule.some(([key]) =>
+          key.startsWith(this.pending),
+        )
+      } while (!willmatch && this.pending.length > 0)
     }
-
-    return { romaji, kana }
   }
 }
