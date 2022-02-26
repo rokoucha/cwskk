@@ -22,6 +22,7 @@ SOFTWARE.
 
 ---
 
+/src/rules/ascii.ts
 /src/rules/romaji.ts
 
 CorvusSKK の /imcrvcnf/convtable.cpp より改変、作成元ファイルは MIT License。

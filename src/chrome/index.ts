@@ -11,6 +11,7 @@ import {
   setCandidateWindowProperties,
   setComposition,
   setMenuItems,
+  updateMenuItems,
 } from './chromeInputIme'
 import type { SKK } from '../skk'
 import type {
@@ -38,6 +39,7 @@ export const ChromeSKKContainer: SKKContainerConstructor = class ChromeSKKContai
       setCandidateWindowProperties: this.setCandidateWindowProperties,
       setComposition: this.setComposition,
       setMenuItems: this.setMenuItems,
+      updateMenuItems: this.updateMenuItems,
     })
 
     onActive.addListener(async (engineID) => {
@@ -108,5 +110,8 @@ export const ChromeSKKContainer: SKKContainerConstructor = class ChromeSKKContai
 
   async setMenuItems(items: MenuItem[]): Promise<void> {
     await setMenuItems({ engineID: this.engineId, items })
+  }
+  async updateMenuItems(items: MenuItem[]): Promise<void> {
+    await updateMenuItems({ engineID: this.engineId, items })
   }
 }

@@ -29,9 +29,9 @@
  *
  */
 
-import type { Table } from '../types'
+import type { KanaTable } from '../types'
 
-export const ROMAJI_TABLE: Table = {
+export const ROMAJI_TABLE: KanaTable = {
   convertible: [
     'a',
     'b',

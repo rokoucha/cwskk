@@ -1,7 +1,18 @@
 import { download, parse, Entries } from './dictionary'
 import { ROMAJI_TABLE } from './rules/romaji'
-import { ACCEPTABLE_SPECIAL_KEYS, CANDIDATE_LABEL } from './constants'
-import type { CandidateTemplate, KanaMode, MenuItem, Table } from './types'
+import {
+  ACCEPTABLE_SPECIAL_KEYS,
+  CANDIDATE_LABEL,
+  MENU_ITEMS,
+} from './constants'
+import type {
+  AsciiTable,
+  CandidateTemplate,
+  KanaTable,
+  LetterMode,
+  MenuItem,
+} from './types'
+import { ASCII_TABLE } from './rules/ascii'
 
 export type SKKIMEMethods = {
   clearComposition(): Promise<void>
@@ -22,6 +33,7 @@ export type SKKIMEMethods = {
     },
   ): Promise<void>
   setMenuItems(items: MenuItem[]): Promise<void>
+  updateMenuItems(items: MenuItem[]): Promise<void>
 }
 
 export class SKK {
@@ -30,18 +42,18 @@ export class SKK {
   private dict: Entries
   private entries: CandidateTemplate[]
   private ime: SKKIMEMethods
-  private kanaMode: KanaMode
+  private letterMode: LetterMode
   private pending: string
-  private table: Table
+  private table: { ascii: AsciiTable; kana: KanaTable }
 
   constructor(ime: SKKIMEMethods) {
     this.committable = ''
     this.conversion = false
     this.dict = new Map()
     this.entries = []
-    this.kanaMode = 'hiragana'
+    this.letterMode = 'hiragana'
     this.pending = ''
-    this.table = ROMAJI_TABLE
+    this.table = { ascii: ASCII_TABLE, kana: ROMAJI_TABLE }
 
     this.ime = ime
   }
@@ -49,6 +61,7 @@ export class SKK {
   public async setup() {
     await this.getDict()
     await this.setMenuItems()
+    await this.updateMenuItem()
   }
 
   public async onCandidateSelected(index: number) {
@@ -81,9 +94,13 @@ export class SKK {
       return false
     }
 
-    // C-j は握り潰す
+    // C-j はひらがなモードにして握り潰す
     // TODO: あとで Enter と同一扱いにする
-    if (e.ctrlKey && e.key == 'j') {
+    if (e.ctrlKey && e.key === 'j') {
+      this.letterMode = 'hiragana'
+
+      await this.updateMenuItem()
+
       return true
     }
 
@@ -98,14 +115,28 @@ export class SKK {
 
     let ignoreThisKey = false
 
+    // かなモードで変換中でもなく l または L が押されたら英数モードにする
+    if (
+      !this.letterMode.endsWith('ascii') &&
+      !this.conversion &&
+      this.entries.length === 0 &&
+      e.key.toLowerCase() === 'l'
+    ) {
+      ignoreThisKey = true
+
+      this.letterMode = e.shiftKey ? 'wideascii' : 'halfascii'
+
+      await this.updateMenuItem()
+    }
+
     // Shift が押されたら現時点のかなを確定して変換モードにする
     if (
+      !this.letterMode.endsWith('ascii') &&
       !this.conversion &&
       e.shiftKey &&
-      this.table.convertible.includes(e.key.toLowerCase())
+      this.table.kana.convertible.includes(e.key.toLowerCase())
     ) {
-      // かなを確定
-      this.romajiToKana()
+      this.keyToLetter()
 
       this.conversion = true
     }
@@ -131,8 +162,7 @@ export class SKK {
       if (e.key === ' ') {
         ignoreThisKey = true
 
-        // かなを確定
-        this.romajiToKana(true)
+        this.keyToLetter(true)
 
         const candidates = this.dict.get(this.committable)
         if (!candidates || candidates.length < 1) {
@@ -168,7 +198,7 @@ export class SKK {
           const selected = CANDIDATE_LABEL.indexOf(e.key)
 
           return this.onCandidateSelected(selected)
-        } else if (this.table.convertible.includes(e.key.toLowerCase())) {
+        } else if (this.table.kana.convertible.includes(e.key.toLowerCase())) {
           this.conversion = false
 
           this.committable = this.entries[0].candidate ?? this.committable
@@ -184,11 +214,14 @@ export class SKK {
 
     // 特殊キー以外なら未確定バッファに押されたキーを追加
     if (!ACCEPTABLE_SPECIAL_KEYS.includes(e.key) && !ignoreThisKey) {
-      this.pending += e.key.toLowerCase()
+      this.pending += this.letterMode.endsWith('ascii')
+        ? e.key
+        : e.key.toLowerCase()
     }
 
-    // かなを確定
-    this.romajiToKana()
+    this.keyToLetter()
+
+    console.log(this.letterMode, e.key, this.committable, this.pending)
 
     // Backspace の処理
     if (e.key === 'Backspace') {
@@ -268,36 +301,58 @@ export class SKK {
   }
 
   private async setMenuItems() {
-    const items = [
-      { id: 'skk-options', label: 'SKKの設定', style: 'check' },
-      { id: 'skk-separator', style: 'separator' },
-      { id: 'skk-hiragana', label: 'ひらがな', style: 'radio', checked: true },
-      { id: 'skk-katakana', label: 'カタカナ', style: 'radio', checked: false },
-    ]
-
-    await this.ime.setMenuItems(items)
+    await this.ime.setMenuItems(MENU_ITEMS)
   }
 
-  private getKana(hira: string, kata: string, han: string) {
-    switch (this.kanaMode) {
+  private async updateMenuItem() {
+    const item = MENU_ITEMS.find((i) => i.id === `skk-${this.letterMode}`)
+
+    if (!item) return
+
+    item.checked = true
+
+    await this.ime.updateMenuItems([item])
+  }
+
+  private getKana(hiragana: string, katakana: string, halfkana: string) {
+    switch (this.letterMode) {
       case 'hiragana':
-        return hira
+        return hiragana
       case 'katakana':
-        return kata
+        return katakana
       case 'halfkana':
-        return han
+        return halfkana
       default:
-        const _: never = this.kanaMode
+        throw new Error('Called "getKana()" in ASCII input mode.')
     }
   }
 
-  private romajiToKana(commit = false) {
+  private keyToLetter(commit = false) {
+    // 英数モード
+    if (this.letterMode === 'halfascii' || this.letterMode === 'wideascii') {
+      const rule = this.table.ascii.rule
+
+      const letters = rule.find(([key]) => key.startsWith(this.pending))
+
+      if (letters) {
+        const [half, wide] = letters
+
+        this.pending = ''
+
+        this.committable = this.letterMode === 'halfascii' ? half : wide
+      }
+
+      return
+    }
+
+    // かなモード
+    const rule = this.table.kana.rule
+
     // 今後仮名になる可能性があるか?
-    const matchable = this.table.rule.find(([key]) =>
-      key.startsWith(this.pending),
-    )
+    const matchable = rule.find(([key]) => key.startsWith(this.pending))
+
     // 今のローマ字でマッチする読みの仮名
-    const yomi = this.table.rule.find(([key]) => key === this.pending)
+    const yomi = rule.find(([key]) => key === this.pending)
 
     // 最短でマッチした仮名があるなら変換
     if (matchable && yomi && matchable[0] === yomi[0]) {
@@ -310,7 +365,7 @@ export class SKK {
     }
     // 確定する為に現時点で変換できる分を全て変換する
     else if (matchable && commit) {
-      const forceComitYomi = this.table.rule.find(
+      const forceComitYomi = rule.find(
         ([key, [_hira, _kana, _han, _flag]]) => key === this.pending,
       )
       if (forceComitYomi) {
@@ -332,7 +387,7 @@ export class SKK {
         this.pending = this.pending.slice(1)
 
         // 頭にいる look-next なローマ字を変換
-        const lookNext = this.table.rule.find(
+        const lookNext = rule.find(
           ([key, [_hira, _kana, _han, flag]]) =>
             key === prekana && flag === 'look-next',
         )
@@ -343,7 +398,7 @@ export class SKK {
         }
 
         // 余計な文字が前に入ったローマ字を変換
-        const gleanings = this.table.rule.find(([key]) => key === this.pending)
+        const gleanings = rule.find(([key]) => key === this.pending)
         if (gleanings) {
           const [_key, [hira, kata, han, flag]] = gleanings
 
@@ -354,9 +409,7 @@ export class SKK {
         }
 
         // 今後仮名になる可能性が生まれる状態までループ
-        willmatch = this.table.rule.some(([key]) =>
-          key.startsWith(this.pending),
-        )
+        willmatch = rule.some(([key]) => key.startsWith(this.pending))
       } while (!willmatch && this.pending.length > 0)
     }
   }

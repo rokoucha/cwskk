@@ -91,11 +91,13 @@ export const setMenuItems = (parameters: chrome.input.ime.ImeParameters) =>
     chrome.input.ime.setMenuItems(parameters, () => resolve()),
   )
 
-export const updateMenuItems = (
-  parameters: chrome.input.ime.MenuItemParameters,
-) =>
+export const updateMenuItems = (parameters: chrome.input.ime.ImeParameters) =>
   new Promise<void>((resolve) =>
-    chrome.input.ime.updateMenuItems(parameters, () => resolve()),
+    chrome.input.ime.updateMenuItems(
+      // FIXME: @types/chrome の型がおかしい
+      parameters as any as chrome.input.ime.MenuItemParameters,
+      () => resolve(),
+    ),
   )
 
 export const onActive = chrome.input.ime.onActivate

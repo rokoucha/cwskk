@@ -1,6 +1,6 @@
 import type { SKK } from './skk'
 
-export type Rule = [
+export type KanaRule = [
   string,
   (
     | [string, string, string]
@@ -8,12 +8,23 @@ export type Rule = [
   ),
 ][]
 
-export type Table = {
+export type KanaTable = {
   convertible: string[]
-  rule: Rule
+  rule: KanaRule
 }
 
-export type KanaMode = 'hiragana' | 'katakana' | 'halfkana'
+export type AsciiRule = [string, string][]
+
+export type AsciiTable = {
+  rule: AsciiRule
+}
+
+export type LetterMode =
+  | 'halfascii'
+  | 'wideascii'
+  | 'hiragana'
+  | 'katakana'
+  | 'halfkana'
 
 export type CandidateTemplate = {
   candidate: string
