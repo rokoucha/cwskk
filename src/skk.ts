@@ -298,13 +298,14 @@ export class SKK {
     return true
   }
 
-  public onMenuActivated(name: string) {
+  public async onMenuActivated(name: string) {
     if (name === 'skk-options') {
       window.alert('option')
       return
     }
+    this.letterMode = name.slice('skk-'.length) as LetterMode
 
-    window.alert(name)
+    await this.updateMenuItem()
   }
 
   private async getDict() {

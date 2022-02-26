@@ -66,8 +66,8 @@ export const ChromeSKKContainer: SKKContainerConstructor = class ChromeSKKContai
       return await this.skk.onKeyEvent(keyData as KeyboardEvent)
     })
 
-    onMenuItemActivated.addListener((_engineID, name) => {
-      return this.skk.onMenuActivated(name)
+    onMenuItemActivated.addListener(async (_engineID, name) => {
+      return await this.skk.onMenuActivated(name)
     })
   }
 
