@@ -107,8 +107,7 @@ export class SKK {
     // 使わない特殊キーは処理しない
     if (
       (e.key.length > 1 && !ACCEPTABLE_SPECIAL_KEYS.includes(e.key)) ||
-      e.altKey ||
-      e.ctrlKey
+      e.altKey
     ) {
       return false
     }
@@ -129,7 +128,21 @@ export class SKK {
       await this.updateMenuItem()
     }
 
-    // Shift が押されたら現時点のかなを確定して変換モードにする
+    // かなモードで変換中でもなく q または C-q が押されたらカタカナモードにする
+    if (
+      !this.letterMode.endsWith('ascii') &&
+      !this.conversion &&
+      this.entries.length === 0 &&
+      e.key === 'q'
+    ) {
+      ignoreThisKey = true
+
+      this.letterMode = e.ctrlKey ? 'halfkana' : 'katakana'
+
+      await this.updateMenuItem()
+    }
+
+    // かなモードで Shift が押されたら現時点のかなを確定して変換モードにする
     if (
       !this.letterMode.endsWith('ascii') &&
       !this.conversion &&
