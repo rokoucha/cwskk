@@ -310,11 +310,11 @@ export class SKK {
     }
     // 確定する為に現時点で変換できる分を全て変換する
     else if (matchable && commit) {
-      const lookNext = this.table.rule.find(
+      const forceComitYomi = this.table.rule.find(
         ([key, [_hira, _kana, _han, _flag]]) => key === this.pending,
       )
-      if (lookNext) {
-        const [_key, [hira, kata, han, _flag]] = lookNext
+      if (forceComitYomi) {
+        const [_key, [hira, kata, han, _flag]] = forceComitYomi
 
         this.committable += this.getKana(hira, kata, han)
       }
