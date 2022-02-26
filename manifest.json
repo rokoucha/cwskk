@@ -1,0 +1,28 @@
+{
+  "name": "CWSKK",
+  "description": "Coward SKK (Simple Kana to Kanji conversion program)",
+  "version": "1.0.0",
+  "manifest_version": 2,
+  "permissions": ["input", "https://skk-dev.github.io/dict/*"],
+  "background": {
+    "scripts": ["index.js"]
+  },
+  "input_components": [
+    {
+      "description": "Coward SKK (Simple Kana to Kanji conversion program)",
+      "id": "net.rokoucha.cwskk.us",
+      "language": "ja",
+      "layouts": ["us"],
+      "name": "CWSKK(US)",
+      "type": "ime"
+    },
+    {
+      "description": "Coward SKK (Simple Kana to Kanji conversion program)",
+      "id": "net.rokoucha.cwskk.jp",
+      "language": "ja",
+      "layouts": ["jp"],
+      "name": "CWSKK",
+      "type": "ime"
+    }
+  ]
+}

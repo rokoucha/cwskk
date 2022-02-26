@@ -1,7 +1,10 @@
 import { pnpPlugin } from '@yarnpkg/esbuild-plugin-pnp'
 import esbuild from 'esbuild'
+import { copyFile } from 'fs/promises'
 
 const [_node, _script, mode] = /** @type {string[]} */ (process.argv)
+
+await copyFile('./manifest.json', './dist/manifest.json')
 
 await esbuild.build({
   bundle: true,
