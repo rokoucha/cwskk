@@ -161,12 +161,24 @@ export class SKK {
       }
 
       // 変換候補から選択されたものを確定
-      if (this.entries.length > 0 && CANDIDATE_LABEL.includes(e.key)) {
-        ignoreThisKey = true
+      if (this.entries.length > 0) {
+        if (CANDIDATE_LABEL.includes(e.key)) {
+          ignoreThisKey = true
 
-        const selected = CANDIDATE_LABEL.indexOf(e.key)
+          const selected = CANDIDATE_LABEL.indexOf(e.key)
 
-        return this.onCandidateSelected(selected)
+          return this.onCandidateSelected(selected)
+        } else if (this.table.convertible.includes(e.key.toLowerCase())) {
+          this.conversion = false
+
+          this.committable = this.entries[0].candidate ?? this.committable
+
+          await this.ime.setCandidateWindowProperties({
+            visible: false,
+          })
+
+          this.entries = []
+        }
       }
     }
 
