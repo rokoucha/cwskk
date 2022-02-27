@@ -37,23 +37,34 @@ export type SKKIMEMethods = {
 }
 
 export class SKK {
-  private committable: string
   private conversion: boolean
   private dict: Entries
   private entries: CandidateTemplate[]
   private ime: SKKIMEMethods
   private letterMode: LetterMode
-  private pending: string
   private table: { ascii: AsciiTable; kana: KanaTable }
 
+  // 打鍵
+  private keys: string
+  // 文字
+  private letters: string
+  // 未確定文字列
+  private composition: string
+  // 確定文字列
+  private commit: string
+
   constructor(ime: SKKIMEMethods) {
-    this.committable = ''
     this.conversion = false
     this.dict = new Map()
     this.entries = []
     this.letterMode = 'hiragana'
-    this.pending = ''
     this.table = { ascii: ASCII_TABLE, kana: ROMAJI_TABLE }
+
+    this.keys = ''
+    this.letters = ''
+
+    this.composition = ''
+    this.commit = ''
 
     this.ime = ime
   }
@@ -67,11 +78,11 @@ export class SKK {
   public async onCandidateSelected(index: number) {
     this.conversion = false
 
-    this.committable = this.entries[index].candidate ?? this.committable
+    this.letters = this.entries[index].candidate ?? this.letters
 
     await this.ime.clearComposition()
 
-    await this.ime.commitText(this.committable + this.pending)
+    await this.ime.commitText(this.letters + this.keys)
 
     await this.ime.setCandidateWindowProperties({
       visible: false,
@@ -79,8 +90,8 @@ export class SKK {
 
     this.entries = []
 
-    this.committable = ''
-    this.pending = ''
+    this.letters = ''
+    this.keys = ''
 
     return true
   }
@@ -160,7 +171,7 @@ export class SKK {
       if (e.key === 'Enter') {
         this.conversion = false
 
-        this.committable = this.entries.shift()?.candidate ?? this.committable
+        this.letters = this.entries.shift()?.candidate ?? this.letters
 
         await this.ime.setCandidateWindowProperties({
           visible: false,
@@ -168,7 +179,7 @@ export class SKK {
 
         this.entries = []
 
-        this.pending = ''
+        this.keys = ''
       }
 
       // 変換候補を表示させる
@@ -177,7 +188,7 @@ export class SKK {
 
         this.keyToLetter(true)
 
-        const candidates = this.dict.get(this.committable)
+        const candidates = this.dict.get(this.letters)
         if (!candidates || candidates.length < 1) {
           await this.ime.setCandidateWindowProperties({
             visible: false,
@@ -214,7 +225,7 @@ export class SKK {
         } else if (this.table.kana.convertible.includes(e.key.toLowerCase())) {
           this.conversion = false
 
-          this.committable = this.entries[0].candidate ?? this.committable
+          this.letters = this.entries[0].candidate ?? this.letters
 
           await this.ime.setCandidateWindowProperties({
             visible: false,
@@ -227,22 +238,22 @@ export class SKK {
 
     // 特殊キー以外なら未確定バッファに押されたキーを追加
     if (!ACCEPTABLE_SPECIAL_KEYS.includes(e.key) && !ignoreThisKey) {
-      this.pending += this.letterMode.endsWith('ascii')
+      this.keys += this.letterMode.endsWith('ascii')
         ? e.key
         : e.key.toLowerCase()
     }
 
     this.keyToLetter()
 
-    console.log(this.letterMode, e.key, this.committable, this.pending)
+    console.log(this.letterMode, e.key, this.letters, this.keys)
 
     // Backspace の処理
     if (e.key === 'Backspace') {
       // 未確定文字→確定文字の順に文字を削除、こちら側のバッファが全て空ならシステム側で消してもらう
-      if (this.pending.length > 0) {
-        this.pending = this.pending.slice(0, -1)
-      } else if (this.committable.length > 0) {
-        this.committable = this.committable.slice(0, -1)
+      if (this.keys.length > 0) {
+        this.keys = this.keys.slice(0, -1)
+      } else if (this.letters.length > 0) {
+        this.letters = this.letters.slice(0, -1)
       } else {
         return false
       }
@@ -254,21 +265,21 @@ export class SKK {
       this.entries = []
 
       // バッファが全て空になったら変換モードから離脱
-      if (this.pending.length === 0 && this.committable.length === 0) {
+      if (this.keys.length === 0 && this.letters.length === 0) {
         this.conversion = false
       }
     }
 
     // 確定処理
     if (e.key === 'Enter') {
-      this.committable = this.committable + this.pending
-      this.pending = ''
+      this.letters = this.letters + this.keys
+      this.keys = ''
     }
 
     // 表示処理
     // 変換モードならプリエディト領域に確定可能バッファ+未確定バッファを表示
     if (this.conversion) {
-      const composition = '▽' + this.committable + this.pending
+      const composition = '▽' + this.letters + this.keys
 
       await this.ime.setComposition(composition, composition.length, {
         selectionStart: 0,
@@ -277,10 +288,10 @@ export class SKK {
     }
     // 直接モードなら確定可能バッファを確定して空にし未確定バッファをプリエディトに表示
     else {
-      if (this.pending === '') {
+      if (this.keys === '') {
         await this.ime.clearComposition()
       } else {
-        const composition = this.pending
+        const composition = this.keys
 
         await this.ime.setComposition(composition, composition.length, {
           selectionStart: 0,
@@ -288,10 +299,10 @@ export class SKK {
         })
       }
 
-      if (this.committable !== '') {
-        await this.ime.commitText(this.committable)
+      if (this.letters !== '') {
+        await this.ime.commitText(this.letters)
 
-        this.committable = ''
+        this.letters = ''
       }
     }
 
@@ -346,14 +357,14 @@ export class SKK {
     if (this.letterMode === 'halfascii' || this.letterMode === 'wideascii') {
       const rule = this.table.ascii.rule
 
-      const letters = rule.find(([key]) => key.startsWith(this.pending))
+      const letters = rule.find(([key]) => key.startsWith(this.keys))
 
       if (letters) {
         const [half, wide] = letters
 
-        this.pending = ''
+        this.keys = ''
 
-        this.committable = this.letterMode === 'halfascii' ? half : wide
+        this.letters = this.letterMode === 'halfascii' ? half : wide
       }
 
       return
@@ -363,33 +374,33 @@ export class SKK {
     const rule = this.table.kana.rule
 
     // 今後仮名になる可能性があるか?
-    const matchable = rule.find(([key]) => key.startsWith(this.pending))
+    const matchable = rule.find(([key]) => key.startsWith(this.keys))
 
     // 今のローマ字でマッチする読みの仮名
-    const yomi = rule.find(([key]) => key === this.pending)
+    const yomi = rule.find(([key]) => key === this.keys)
 
     // 最短でマッチした仮名があるなら変換
     if (matchable && yomi && matchable[0] === yomi[0]) {
       const [_key, [hira, kata, han, flag]] = yomi
 
-      this.committable += this.getKana(hira, kata, han)
+      this.letters += this.getKana(hira, kata, han)
 
       // leave-last な仮名なら最後のローマ字を残す
-      this.pending = flag === 'leave-last' ? this.pending.slice(-1) : ''
+      this.keys = flag === 'leave-last' ? this.keys.slice(-1) : ''
     }
     // 確定する為に現時点で変換できる分を全て変換する
     else if (matchable && commit) {
       const forceComitYomi = rule.find(
-        ([key, [_hira, _kana, _han, _flag]]) => key === this.pending,
+        ([key, [_hira, _kana, _han, _flag]]) => key === this.keys,
       )
       if (forceComitYomi) {
         const [_key, [hira, kata, han, _flag]] = forceComitYomi
 
-        this.committable += this.getKana(hira, kata, han)
+        this.letters += this.getKana(hira, kata, han)
       }
 
       // もう確定するので leave-last は無視
-      this.pending = ''
+      this.keys = ''
     }
     // 今後仮名にならないなら放棄
     else if (!matchable) {
@@ -397,8 +408,8 @@ export class SKK {
       let willmatch = false
 
       do {
-        prekana += this.pending.slice(0, 1)
-        this.pending = this.pending.slice(1)
+        prekana += this.keys.slice(0, 1)
+        this.keys = this.keys.slice(1)
 
         // 頭にいる look-next なローマ字を変換
         const lookNext = rule.find(
@@ -408,23 +419,23 @@ export class SKK {
         if (lookNext) {
           const [_key, [hira, kata, han, _flag]] = lookNext
 
-          this.committable += this.getKana(hira, kata, han)
+          this.letters += this.getKana(hira, kata, han)
         }
 
         // 余計な文字が前に入ったローマ字を変換
-        const gleanings = rule.find(([key]) => key === this.pending)
+        const gleanings = rule.find(([key]) => key === this.keys)
         if (gleanings) {
           const [_key, [hira, kata, han, flag]] = gleanings
 
-          this.committable += this.getKana(hira, kata, han)
+          this.letters += this.getKana(hira, kata, han)
 
           // leave-last な仮名なら最後のローマ字を残す
-          this.pending = flag === 'leave-last' ? this.pending.slice(-1) : ''
+          this.keys = flag === 'leave-last' ? this.keys.slice(-1) : ''
         }
 
         // 今後仮名になる可能性が生まれる状態までループ
-        willmatch = rule.some(([key]) => key.startsWith(this.pending))
-      } while (!willmatch && this.pending.length > 0)
+        willmatch = rule.some(([key]) => key.startsWith(this.keys))
+      } while (!willmatch && this.keys.length > 0)
     }
   }
 }
