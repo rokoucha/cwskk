@@ -1,4 +1,5 @@
 import { download, parse, Entries } from './dictionary'
+import { ASCII_TABLE } from './rules/ascii'
 import { ROMAJI_TABLE } from './rules/romaji'
 import {
   ACCEPTABLE_SPECIAL_KEYS,
@@ -12,7 +13,6 @@ import type {
   LetterMode,
   MenuItem,
 } from './types'
-import { ASCII_TABLE } from './rules/ascii'
 
 export type SKKIMEMethods = {
   clearComposition(): Promise<void>
