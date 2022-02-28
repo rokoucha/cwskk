@@ -48,6 +48,10 @@ export class SKK {
   private keys: string
   // 文字
   private letters: string
+  // okuri
+  private okuri: string
+  // 送り
+  private okuriKana: string
   // 未確定文字列
   private composition: string
   // 確定文字列
@@ -62,6 +66,9 @@ export class SKK {
 
     this.keys = ''
     this.letters = ''
+
+    this.okuri = ''
+    this.okuriKana = ''
 
     this.composition = ''
     this.commit = ''
@@ -153,6 +160,11 @@ export class SKK {
       await this.updateMenuItem()
     }
 
+    // 送り
+    if (this.conversion && e.shiftKey) {
+      this.okuri = e.key.toLowerCase()
+    }
+
     // かなモードで Shift が押されたら現時点のかなを確定して変換モードにする
     if (
       !this.letterMode.endsWith('ascii') &&
@@ -171,7 +183,8 @@ export class SKK {
       if (e.key === 'Enter') {
         this.conversion = false
 
-        this.letters = this.entries.shift()?.candidate ?? this.letters
+        this.letters =
+          (this.entries.shift()?.candidate ?? this.letters) + this.okuriKana
 
         await this.ime.setCandidateWindowProperties({
           visible: false,
@@ -180,6 +193,9 @@ export class SKK {
         this.entries = []
 
         this.keys = ''
+
+        this.okuri = ''
+        this.okuriKana = ''
       }
 
       // 変換候補を表示させる
@@ -188,7 +204,10 @@ export class SKK {
 
         this.keyToLetter(true)
 
-        const candidates = this.dict.get(this.letters)
+        this.okuriKana = this.okuri !== '' ? this.letters.slice(-1) : ''
+
+        const candidates = this.dict.get(this.letters.slice(0, -1) + this.okuri)
+
         if (!candidates || candidates.length < 1) {
           await this.ime.setCandidateWindowProperties({
             visible: false,
@@ -205,7 +224,7 @@ export class SKK {
 
           this.entries = candidates.map((c, i) => ({
             annotation: c.annotation,
-            candidate: c.candidate,
+            candidate: c.candidate + this.okuriKana,
             id: i + 1,
             label: CANDIDATE_LABEL.charAt(i),
           }))
@@ -225,7 +244,8 @@ export class SKK {
         } else if (this.table.kana.convertible.includes(e.key.toLowerCase())) {
           this.conversion = false
 
-          this.letters = this.entries[0].candidate ?? this.letters
+          this.letters =
+            (this.entries[0].candidate ?? this.letters) + this.okuriKana
 
           await this.ime.setCandidateWindowProperties({
             visible: false,
@@ -244,8 +264,6 @@ export class SKK {
     }
 
     this.keyToLetter()
-
-    console.log(this.letterMode, e.key, this.letters, this.keys)
 
     // Backspace の処理
     if (e.key === 'Backspace') {
@@ -337,6 +355,34 @@ export class SKK {
     item.checked = true
 
     await this.ime.updateMenuItems([item])
+  }
+
+  private async setStatusToIme() {
+    if (this.entries.length < 1) {
+      await this.ime.setCandidateWindowProperties({
+        visible: false,
+      })
+    } else {
+      await this.ime.setCandidateWindowProperties({
+        visible: true,
+        cursorVisible: false,
+        vertical: true,
+        pageSize: 7,
+      })
+
+      await this.ime.setCandidates(this.entries)
+    }
+
+    if (this.composition === '') {
+      await this.ime.clearComposition()
+    } else {
+      await this.ime.setComposition(this.composition, this.composition.length, {
+        selectionStart: 0,
+        selectionEnd: this.composition.length,
+      })
+    }
+
+    await this.ime.commitText(this.commit)
   }
 
   private getKana(hiragana: string, katakana: string, halfkana: string) {
