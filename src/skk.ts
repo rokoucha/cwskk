@@ -112,16 +112,6 @@ export class SKK {
       return false
     }
 
-    // C-j はひらがなモードにして握り潰す
-    // TODO: あとで Enter と同一扱いにする
-    if (e.ctrlKey && e.key === 'j') {
-      this.letterMode = 'hiragana'
-
-      await this.updateMenuItem()
-
-      return true
-    }
-
     // 使わない特殊キーは処理しない
     if (
       (e.key.length > 1 && !ACCEPTABLE_SPECIAL_KEYS.includes(e.key)) ||
@@ -131,6 +121,15 @@ export class SKK {
     }
 
     let ignoreThisKey = false
+
+    // C-j はひらがなモードにする
+    if (e.ctrlKey && e.key === 'j') {
+      this.letterMode = 'hiragana'
+
+      await this.updateMenuItem()
+
+      ignoreThisKey = true
+    }
 
     // かなモードで変換中でもなく l または L が押されたら英数モードにする
     if (
@@ -180,7 +179,7 @@ export class SKK {
     // 変換モードの処理
     if (this.conversion) {
       // 変換を確定する
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' || (e.ctrlKey && e.key === 'j')) {
         this.conversion = false
 
         this.letters =
