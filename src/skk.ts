@@ -207,8 +207,6 @@ export class SKK {
       case 'candidate-select': {
         // 最初の候補で変換を確定
         if (e.key === 'Enter' || (e.ctrlKey && e.key === 'j')) {
-          this.mode = 'direct'
-
           ignoreThisKey = true
 
           await this.selectCandidate(0)
@@ -216,11 +214,9 @@ export class SKK {
 
         // 変換候補から選択されたものを確定
         else if (CANDIDATE_LABEL.includes(e.key)) {
-          this.mode = 'direct'
-
           const selected = CANDIDATE_LABEL.indexOf(e.key)
 
-          ignoreThisKey = selected !== -1 && this.entries.length > selected
+          ignoreThisKey = true
 
           await this.selectCandidate(selected)
         }
@@ -370,6 +366,8 @@ export class SKK {
   }
 
   private async selectCandidate(index: number) {
+    if (index < 0 || this.entries.length <= index) return
+
     this.mode = 'direct'
 
     this.letters =
