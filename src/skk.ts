@@ -81,26 +81,9 @@ export class SKK {
   }
 
   public async onCandidateSelected(index: number) {
-    this.mode = 'direct'
+    await this.selectCandidate(index)
 
-    await this.ime.clearComposition()
-
-    await this.ime.commitText(
-      (this.entries[index].candidate ?? this.yomi) + this.okuriKana,
-    )
-
-    await this.ime.setCandidateWindowProperties({
-      visible: false,
-    })
-
-    this.entries = []
-
-    this.letters = ''
-    this.keys = ''
-
-    this.yomi = ''
-    this.okuri = ''
-    this.okuriKana = ''
+    await this.setStatusToIme()
 
     return true
   }
@@ -126,153 +109,128 @@ export class SKK {
 
     // C-j はひらがなモードにする
     if (e.ctrlKey && e.key === 'j') {
+      ignoreThisKey = true
+
       this.letterMode = 'hiragana'
-
-      await this.updateMenuItem()
-
-      ignoreThisKey = true
     }
 
-    // かなモードで変換中でもなく l または L が押されたら英数モードにする
-    if (
-      (this.letterMode === 'hiragana' ||
-        this.letterMode === 'katakana' ||
-        this.letterMode === 'halfkana') &&
-      this.mode === 'direct' &&
-      e.key.toLowerCase() === 'l'
-    ) {
-      ignoreThisKey = true
+    // 各モードごとの処理
+    switch (this.mode) {
+      // 直接モード
+      case 'direct': {
+        // かなモードの処理
+        if (
+          this.letterMode === 'hiragana' ||
+          this.letterMode === 'katakana' ||
+          this.letterMode === 'halfkana'
+        ) {
+          // l または L が押されたら英数モードにする
+          if (e.key.toLowerCase() === 'l') {
+            ignoreThisKey = true
 
-      this.letterMode = e.shiftKey ? 'wideascii' : 'halfascii'
+            this.letterMode = e.shiftKey ? 'wideascii' : 'halfascii'
+          }
 
-      await this.updateMenuItem()
-    }
+          // q または C-q が押されたらひらがな・カタカナの切り替えをする(押す度に反転)
+          if (e.key === 'q') {
+            ignoreThisKey = true
 
-    // かなモードで変換中でもなく q または C-q が押されたらひらがな・カタカナの切り替えをする(押す度に反転)
-    if (
-      (this.letterMode === 'hiragana' ||
-        this.letterMode === 'katakana' ||
-        this.letterMode === 'halfkana') &&
-      this.mode === 'direct' &&
-      e.key === 'q'
-    ) {
-      ignoreThisKey = true
+            this.letterMode =
+              this.letterMode !== 'hiragana'
+                ? 'hiragana'
+                : e.ctrlKey
+                ? 'halfkana'
+                : 'katakana'
+          }
 
-      this.letterMode =
-        this.letterMode !== 'hiragana'
-          ? 'hiragana'
-          : e.ctrlKey
-          ? 'halfkana'
-          : 'katakana'
+          // かなモードで Shift が押されたら現時点のかなを確定して変換モードにする
+          if (
+            e.shiftKey &&
+            this.table.kana.convertible.includes(e.key.toLowerCase())
+          ) {
+            this.keyToYomi(true)
 
-      await this.updateMenuItem()
-    }
-
-    // 送り
-    if (this.mode === 'conversion' && e.shiftKey) {
-      this.okuri = e.key.toLowerCase()
-    }
-
-    // かなモードで Shift が押されたら現時点のかなを確定して変換モードにする
-    if (
-      (this.letterMode === 'hiragana' ||
-        this.letterMode === 'katakana' ||
-        this.letterMode === 'halfkana') &&
-      this.mode === 'direct' &&
-      e.shiftKey &&
-      this.table.kana.convertible.includes(e.key.toLowerCase())
-    ) {
-      this.keyToLetter(true)
-
-      this.mode = 'conversion'
-    }
-
-    // 変換モードの処理
-    if (this.mode === 'conversion') {
-      // 変換を確定する
-      if (e.key === 'Enter' || (e.ctrlKey && e.key === 'j')) {
-        this.mode = 'direct'
-
-        ignoreThisKey = true
-
-        return this.onCandidateSelected(0)
-      }
-
-      // 変換候補を表示させる
-      if (e.key === ' ') {
-        ignoreThisKey = true
-
-        this.keyToLetter(true)
-
-        this.okuriKana = this.okuri !== '' ? this.yomi.slice(-1) : ''
-
-        const candidates = this.dict.get(
-          (this.okuri !== '' ? this.yomi.slice(0, -1) : this.yomi) + this.okuri,
-        )
-
-        if (!candidates || candidates.length < 1) {
-          await this.ime.setCandidateWindowProperties({
-            visible: false,
-          })
-
-          this.entries = []
-        } else {
-          this.mode = 'candidate-select'
-
-          await this.ime.setCandidateWindowProperties({
-            visible: true,
-            cursorVisible: false,
-            vertical: true,
-            pageSize: 7,
-          })
-
-          this.entries = candidates.map((c, i) => ({
-            annotation: c.annotation,
-            candidate: c.candidate + this.okuriKana,
-            id: i + 1,
-            label: CANDIDATE_LABEL.charAt(i),
-          }))
-
-          await this.ime.setCandidates(this.entries)
+            this.mode = 'conversion'
+          }
         }
+
+        break
       }
-    }
 
-    // 候補選択モードの処理
-    if (this.mode === 'candidate-select') {
-      // 最初の候補で変換を確定
-      if (e.key === 'Enter' || (e.ctrlKey && e.key === 'j')) {
-        this.mode = 'direct'
+      // 変換モード
+      case 'conversion': {
+        // 送り
+        if (e.shiftKey && this.okuri === '') {
+          this.okuri = e.key.toLowerCase()
+        }
 
-        ignoreThisKey = true
+        // 変換を確定する
+        if (e.key === 'Enter' || (e.ctrlKey && e.key === 'j')) {
+          this.mode = 'direct'
 
-        return this.onCandidateSelected(0)
+          ignoreThisKey = true
+
+          await this.selectCandidate(0)
+        }
+
+        // 変換候補を表示させる
+        if (e.key === ' ') {
+          ignoreThisKey = true
+
+          this.keyToYomi(true)
+
+          this.okuriKana = this.okuri !== '' ? this.yomi.slice(-1) : ''
+
+          const candidates = this.dict.get(
+            (this.okuri !== '' ? this.yomi.slice(0, -1) : this.yomi) +
+              this.okuri,
+          )
+
+          if (!candidates || candidates.length === 0) {
+            this.entries = []
+          } else {
+            this.mode = 'candidate-select'
+
+            this.entries = candidates.map((c, i) => ({
+              annotation: c.annotation,
+              candidate: c.candidate + this.okuriKana,
+              id: i + 1,
+              label: CANDIDATE_LABEL.charAt(i),
+            }))
+          }
+        }
+
+        break
       }
-      // 変換候補から選択されたものを確定
-      else if (CANDIDATE_LABEL.includes(e.key)) {
-        this.mode = 'direct'
 
-        ignoreThisKey = true
+      // 候補選択モードの処理
+      case 'candidate-select': {
+        // 最初の候補で変換を確定
+        if (e.key === 'Enter' || (e.ctrlKey && e.key === 'j')) {
+          this.mode = 'direct'
 
-        const selected = CANDIDATE_LABEL.indexOf(e.key)
+          ignoreThisKey = true
 
-        return this.onCandidateSelected(selected)
-      }
-      // 選択肢以外のキーなので最初の候補で変換を確定
-      else if (this.table.kana.convertible.includes(e.key.toLowerCase())) {
-        this.mode = 'direct'
+          await this.selectCandidate(0)
+        }
 
-        this.letters = (this.entries[0].candidate ?? this.yomi) + this.okuriKana
+        // 変換候補から選択されたものを確定
+        else if (CANDIDATE_LABEL.includes(e.key)) {
+          this.mode = 'direct'
 
-        await this.ime.setCandidateWindowProperties({
-          visible: false,
-        })
+          const selected = CANDIDATE_LABEL.indexOf(e.key)
 
-        this.entries = []
+          ignoreThisKey = selected !== -1 && this.entries.length > selected
 
-        this.yomi = ''
-        this.okuri = ''
-        this.okuriKana = ''
+          await this.selectCandidate(selected)
+        }
+
+        // 選択肢以外のキーなので最初の候補で変換を確定
+        else if (this.table.kana.convertible.includes(e.key.toLowerCase())) {
+          await this.selectCandidate(0)
+        }
+
+        break
       }
     }
 
@@ -287,7 +245,7 @@ export class SKK {
     }
 
     // 打鍵を文字に変換
-    this.keyToLetter()
+    this.keyToYomi()
 
     // Backspace の処理
     if (e.key === 'Backspace') {
@@ -306,9 +264,6 @@ export class SKK {
       }
 
       // 候補をクリア
-      await this.ime.setCandidateWindowProperties({
-        visible: false,
-      })
       this.entries = []
 
       // 変換バッファが全て空になったら変換モードから離脱
@@ -328,6 +283,41 @@ export class SKK {
     }
 
     // 表示処理
+    await this.setStatusToIme()
+
+    return true
+  }
+
+  public async onMenuActivated(name: string) {
+    if (name === 'skk-options') {
+      window.alert('option')
+      return
+    }
+    this.letterMode = name.slice('skk-'.length) as LetterMode
+
+    await this.updateMenuItem()
+  }
+
+  private async setStatusToIme() {
+    // メニュー状態を更新
+    await this.updateMenuItem()
+
+    // 候補表示
+    if (this.entries.length === 0) {
+      await this.ime.setCandidateWindowProperties({
+        visible: false,
+      })
+    } else {
+      await this.ime.setCandidateWindowProperties({
+        visible: true,
+        cursorVisible: false,
+        vertical: true,
+        pageSize: 7,
+      })
+
+      await this.ime.setCandidates(this.entries)
+    }
+
     // 直接モードなら確定可能バッファを確定して空にし未確定バッファをプリエディトに表示
     if (this.mode === 'direct') {
       if (this.keys === '') {
@@ -357,18 +347,6 @@ export class SKK {
         selectionEnd: composition.length,
       })
     }
-
-    return true
-  }
-
-  public async onMenuActivated(name: string) {
-    if (name === 'skk-options') {
-      window.alert('option')
-      return
-    }
-    this.letterMode = name.slice('skk-'.length) as LetterMode
-
-    await this.updateMenuItem()
   }
 
   private async getDict() {
@@ -391,6 +369,19 @@ export class SKK {
     await this.ime.updateMenuItems([item])
   }
 
+  private async selectCandidate(index: number) {
+    this.mode = 'direct'
+
+    this.letters =
+      (this.entries[index]?.candidate ?? this.yomi) + this.okuriKana
+
+    this.entries = []
+
+    this.yomi = ''
+    this.okuri = ''
+    this.okuriKana = ''
+  }
+
   private getKana(hiragana: string, katakana: string, halfkana: string) {
     switch (this.letterMode) {
       case 'hiragana':
@@ -404,7 +395,7 @@ export class SKK {
     }
   }
 
-  private keyToLetter(commit = false) {
+  private keyToYomi(commit = false) {
     // 英数モード
     if (this.letterMode === 'halfascii' || this.letterMode === 'wideascii') {
       const rule = this.table.ascii.rule
@@ -416,7 +407,7 @@ export class SKK {
 
         this.keys = ''
 
-        this.letters = this.letterMode === 'halfascii' ? half : wide
+        this.yomi = this.letterMode === 'halfascii' ? half : wide
       }
 
       return
