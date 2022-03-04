@@ -1,10 +1,12 @@
-import { MenuItem } from './types'
+import type { MenuItem } from './types'
 
-// 処理可能な特殊キー
+/** 処理可能な特殊キー */
 export const ACCEPTABLE_SPECIAL_KEYS = ['Enter', 'Backspace']
 
+/** 候補選択に使用するキー */
 export const CANDIDATE_LABEL = 'asdfjkl'
 
+/** IME のメニュー要素 */
 export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'skk-options',

@@ -36,25 +36,48 @@ export type SKKIMEMethods = {
   updateMenuItems(items: MenuItem[]): Promise<void>
 }
 
+/**
+ * SKK - Simple Kana to Kanji conversion program
+ */
 export class SKK {
+  /** 辞書 */
   private dict: Entries
+
+  /** 候補 */
   private entries: CandidateTemplate[]
+
+  /** IME の機能を呼び出す為の関数リスト */
   private ime: SKKIMEMethods
+
+  /** 入力モード */
   private letterMode: LetterMode
+
+  /** 変換テーブル */
   private table: { ascii: AsciiTable; kana: KanaTable }
+
+  /** SKK の状態 */
   private mode: 'direct' | 'conversion' | 'candidate-select'
 
-  // 打鍵
+  /** 打鍵 */
   private keys: string
-  // 確定可能文字
+
+  /** 確定可能文字 */
   private letters: string
-  // 読み
+
+  /** 読み */
   private yomi: string
-  // okuri(英字)
+
+  /** okuri(英字) */
   private okuri: string
-  // 送り(かな)
+
+  /** 送り(かな) */
   private okuriKana: string
 
+  /**
+   * コンストラクタ
+   *
+   * @param ime IME の機能を呼び出す為の関数リスト
+   */
   constructor(ime: SKKIMEMethods) {
     this.dict = new Map()
     this.entries = []
@@ -74,20 +97,33 @@ export class SKK {
     this.ime = ime
   }
 
+  /**
+   * セットアップ
+   */
   public async setup() {
     await this.getDict()
     await this.setMenuItems()
     await this.updateMenuItem()
   }
 
+  /**
+   * 候補選択イベント
+   *
+   * @param index
+   */
   public async onCandidateSelected(index: number) {
     await this.selectCandidate(index)
 
     await this.setStatusToIme()
-
-    return true
   }
 
+  /**
+   * キー入力イベント
+   *
+   * @param e キーイベント
+   *
+   * @returns true: IME(SKK) で処理, false: システムで処理
+   */
   public async onKeyEvent(e: KeyboardEvent) {
     if (e.type !== 'keydown') {
       return false
@@ -284,16 +320,24 @@ export class SKK {
     return true
   }
 
-  public async onMenuActivated(name: string) {
-    if (name === 'skk-options') {
+  /**
+   * メニュー選択イベント
+   *
+   * @param id 選択されたメニュー要素の ID
+   */
+  public async onMenuActivated(id: string) {
+    if (id === 'skk-options') {
       window.alert('option')
       return
     }
-    this.letterMode = name.slice('skk-'.length) as LetterMode
+    this.letterMode = id.slice('skk-'.length) as LetterMode
 
     await this.updateMenuItem()
   }
 
+  /**
+   * SKK の状態を IME に反映
+   */
   private async setStatusToIme() {
     // メニュー状態を更新
     await this.updateMenuItem()
@@ -345,16 +389,27 @@ export class SKK {
     }
   }
 
+  /**
+   * 辞書を取得
+   */
   private async getDict() {
     this.dict = parse(
       await download('https://skk-dev.github.io/dict/SKK-JISYO.S.gz', 'euc-jp'),
     )
   }
 
+  /**
+   * メニューの内容を設定
+   */
   private async setMenuItems() {
     await this.ime.setMenuItems(MENU_ITEMS)
   }
 
+  /**
+   * メニューの内容を更新
+   *
+   * 入力モードの変更を反映させる時に使う
+   */
   private async updateMenuItem() {
     const item = MENU_ITEMS.find((i) => i.id === `skk-${this.letterMode}`)
 
@@ -365,6 +420,11 @@ export class SKK {
     await this.ime.updateMenuItems([item])
   }
 
+  /**
+   * 候補の単語を確定
+   *
+   * @param index 候補の番号
+   */
   private async selectCandidate(index: number) {
     if (index < 0 || this.entries.length <= index) return
 
@@ -380,6 +440,15 @@ export class SKK {
     this.okuriKana = ''
   }
 
+  /**
+   * 現在の入力モードから文字を選択
+   *
+   * @param hiragana ひらがなでの文字
+   * @param katakana カタカナでの文字
+   * @param halfkana 半角ｶﾀｶﾅでの文字
+   *
+   * @returns 現在の入力モードに紐づく文字
+   */
   private getKana(hiragana: string, katakana: string, halfkana: string) {
     switch (this.letterMode) {
       case 'hiragana':
@@ -393,6 +462,11 @@ export class SKK {
     }
   }
 
+  /**
+   * キーストロークをよみに変換
+   *
+   * @param commit 現時点の入力で打ち切りにしてよみを確定する
+   */
   private keyToYomi(commit = false) {
     // 英数モード
     if (this.letterMode === 'halfascii' || this.letterMode === 'wideascii') {
