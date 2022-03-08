@@ -46,8 +46,10 @@ export const ChromeSKKContainer: SKKContainerConstructor = class ChromeSKKContai
       },
 
       setCandidateWindowProperties: async (properties: {
+        currentCandidateIndex?: number
         cursorVisible?: boolean
         pageSize?: number
+        totalCandidates?: number
         vertical?: boolean
         visible?: boolean
       }): Promise<void> => {

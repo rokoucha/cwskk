@@ -19,8 +19,10 @@ export type SKKIMEMethods = {
   commitText(text: string): Promise<void>
   setCandidates(candidates: CandidateTemplate[]): Promise<void>
   setCandidateWindowProperties(properties: {
+    currentCandidateIndex?: number
     cursorVisible?: boolean
     pageSize?: number
+    totalCandidates?: number
     vertical?: boolean
     visible?: boolean
   }): Promise<void>
@@ -45,6 +47,9 @@ export class SKK {
 
   /** 候補 */
   private entries: CandidateTemplate[]
+
+  /** 候補のページ  */
+  private entriesIndex: number
 
   /** IME の機能を呼び出す為の関数リスト */
   private ime: SKKIMEMethods
@@ -81,6 +86,7 @@ export class SKK {
   constructor(ime: SKKIMEMethods) {
     this.dict = new Map()
     this.entries = []
+    this.entriesIndex = 0
     this.letterMode = 'hiragana'
     this.table = { ascii: ASCII_TABLE, kana: ROMAJI_TABLE }
 
@@ -233,6 +239,7 @@ export class SKK {
               id: i + 1,
               label: CANDIDATE_LABEL.charAt(i),
             }))
+            this.entriesIndex = 0
           }
         }
 
@@ -349,10 +356,12 @@ export class SKK {
       })
     } else {
       await this.ime.setCandidateWindowProperties({
-        visible: true,
+        currentCandidateIndex: this.entriesIndex,
         cursorVisible: false,
-        vertical: true,
         pageSize: 7,
+        totalCandidates: this.entries.length,
+        vertical: true,
+        visible: true,
       })
 
       await this.ime.setCandidates(this.entries)
