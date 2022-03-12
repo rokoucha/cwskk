@@ -5,7 +5,7 @@
   "manifest_version": 2,
   "permissions": ["input", "https://skk-dev.github.io/dict/*"],
   "background": {
-    "scripts": ["index.js"]
+    "scripts": ["index_chrome.js"]
   },
   "input_components": [
     {

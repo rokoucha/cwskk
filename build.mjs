@@ -1,14 +1,13 @@
 import { pnpPlugin } from '@yarnpkg/esbuild-plugin-pnp'
 import esbuild from 'esbuild'
-import { copyFile } from 'fs/promises'
+import { copyFile, mkdir, rm } from 'fs/promises'
 
 const [_node, _script, mode] = /** @type {string[]} */ (process.argv)
 
-await copyFile('./manifest.json', './dist/manifest.json')
-
-await esbuild.build({
+/** @type {esbuild.BuildOptions} */
+const options = {
   bundle: true,
-  entryPoints: ['./src/index.ts'],
+  entryPoints: ['./src/index_browser.tsx', './src/index_chrome.ts'],
   format: 'esm',
   logLevel: 'info',
   minify: false,
@@ -16,6 +15,44 @@ await esbuild.build({
   platform: 'browser',
   plugins: [pnpPlugin()],
   sourcemap: true,
+  target: 'es2021',
   treeShaking: true,
-  watch: mode === 'watch',
-})
+  watch: false,
+}
+
+await rm('./dist', { recursive: true, force: true })
+await mkdir('./dist', { recursive: true })
+
+await copyFile('./public/index.html', './dist/index.html')
+await copyFile('./public/manifest.json', './dist/manifest.json')
+
+switch (mode) {
+  case 'serve':
+    {
+      await esbuild.serve(
+        {
+          port: 8787,
+          servedir: './dist',
+          onRequest({ method, path, remoteAddress, status, timeInMS }) {
+            console.log(
+              `${remoteAddress} [${new Date().toISOString()}] "${method} ${path}" ${status} ${timeInMS}ms`,
+            )
+          },
+        },
+        { ...options },
+      )
+    }
+    break
+  case 'watch':
+    {
+      await esbuild.build({ ...options, watch: true })
+    }
+    break
+
+  case 'build':
+  default:
+    {
+      await esbuild.build({ ...options })
+    }
+    break
+}

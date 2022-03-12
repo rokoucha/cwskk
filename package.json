@@ -7,6 +7,8 @@
     "@types/chrome": "^0.0.178",
     "@types/jest": "^27.4.0",
     "@types/pako": "^1.0.3",
+    "@types/react": "^17.0.40",
+    "@types/react-dom": "^17.0.13",
     "@yarnpkg/esbuild-plugin-pnp": "^2.0.1",
     "esbuild": "^0.14.23",
     "jest": "^27.5.1",
@@ -16,9 +18,12 @@
   },
   "scripts": {
     "build": "yarn node ./build.mjs",
+    "serve": "yarn node ./build.mjs serve",
     "watch": "yarn node ./build.mjs watch"
   },
   "dependencies": {
-    "pako": "^2.0.4"
+    "pako": "^2.0.4",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   }
 }
