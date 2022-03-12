@@ -481,7 +481,9 @@ export class SKK {
     if (this.letterMode === 'halfascii' || this.letterMode === 'wideascii') {
       const rule = this.table.ascii.rule
 
-      const letters = rule.find(([key]) => key.startsWith(this.keys))
+      const letters = rule.find(
+        ([key]) => this.keys !== '' && key.startsWith(this.keys),
+      )
 
       if (letters) {
         const [half, wide] = letters
@@ -498,7 +500,9 @@ export class SKK {
     const rule = this.table.kana.rule
 
     // 今後仮名になる可能性があるか?
-    const matchable = rule.find(([key]) => key.startsWith(this.keys))
+    const matchable = rule.find(
+      ([key]) => this.keys !== '' && key.startsWith(this.keys),
+    )
 
     // 今のローマ字でマッチする読みの仮名
     const yomi = rule.find(([key]) => key === this.keys)
