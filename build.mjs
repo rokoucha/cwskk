@@ -29,18 +29,20 @@ await copyFile('./public/manifest.json', './dist/manifest.json')
 switch (mode) {
   case 'serve':
     {
-      await esbuild.serve(
-        {
-          port: 8787,
-          servedir: './dist',
-          onRequest({ method, path, remoteAddress, status, timeInMS }) {
-            console.log(
-              `${remoteAddress} [${new Date().toISOString()}] "${method} ${path}" ${status} ${timeInMS}ms`,
-            )
+      await esbuild
+        .serve(
+          {
+            port: 8787,
+            servedir: './dist',
+            onRequest({ method, path, remoteAddress, status, timeInMS }) {
+              console.log(
+                `${remoteAddress} [${new Date().toISOString()}] "${method} ${path}" ${status} ${timeInMS}ms`,
+              )
+            },
           },
-        },
-        { ...options },
-      )
+          { ...options },
+        )
+        .then(() => console.log('Listening on http://localhost:8787'))
     }
     break
   case 'watch':
