@@ -194,6 +194,18 @@ export class SKK {
 
             this.mode = 'conversion'
           }
+
+          // よみを確定
+          if (e.key === 'Enter' || (e.ctrlKey && e.key === 'j')) {
+            ignoreThisKey = true
+
+            this.letters = this.yomi + this.okuriKana + this.keys
+
+            this.keys = ''
+            this.yomi = ''
+            this.okuri = ''
+            this.okuriKana = ''
+          }
         }
 
         break
@@ -212,7 +224,12 @@ export class SKK {
 
           ignoreThisKey = true
 
-          await this.selectCandidate(0)
+          this.letters = this.yomi + this.okuriKana + this.keys
+
+          this.keys = ''
+          this.yomi = ''
+          this.okuri = ''
+          this.okuriKana = ''
         }
 
         // 変換候補を表示させる
@@ -313,12 +330,6 @@ export class SKK {
       ) {
         this.mode = 'direct'
       }
-    }
-
-    // 確定処理
-    if (e.key === 'Enter') {
-      this.letters = this.yomi + this.okuriKana + this.keys
-      this.keys = ''
     }
 
     // 表示処理
