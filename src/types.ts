@@ -69,7 +69,7 @@ export type CandidateTemplate = {
 export type MenuItem = {
   id: `skk-${LetterMode | 'options' | 'separator'}`
   label?: string
-  style?: string
+  style?: 'check' | 'radio' | 'separator'
   visible?: boolean
   checked?: boolean
   enabled?: boolean
