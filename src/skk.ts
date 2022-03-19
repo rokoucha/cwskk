@@ -1,9 +1,11 @@
-import { download, parse, Entries } from './dictionary'
+import { download, parse, type Entries, type Candidate } from './dictionary'
 import { ASCII_TABLE } from './rules/ascii'
 import { ROMAJI_TABLE } from './rules/romaji'
 import {
   ACCEPTABLE_SPECIAL_KEYS,
   CANDIDATE_LABEL,
+  CANDIDATE_PAGE_SIZE,
+  CANDIDATE_WINDOW_OPEN_NUM,
   MENU_ITEMS,
 } from './constants'
 import type {
@@ -45,10 +47,13 @@ export class SKK {
   /** 辞書 */
   private dict: Entries
 
-  /** 候補 */
-  private entries: CandidateTemplate[]
+  /** 候補ウィンドウの表示内容 */
+  private candidates: CandidateTemplate[]
 
-  /** 候補のページ  */
+  /** 候補 */
+  private entries: Candidate[]
+
+  /** 選択中の候補  */
   private entriesIndex: number
 
   /** IME の機能を呼び出す為の関数リスト */
@@ -85,8 +90,9 @@ export class SKK {
    */
   constructor(ime: SKKIMEMethods) {
     this.dict = new Map()
+    this.candidates = []
     this.entries = []
-    this.entriesIndex = 0
+    this.entriesIndex = -1
     this.letterMode = 'hiragana'
     this.table = { ascii: ASCII_TABLE, kana: ROMAJI_TABLE }
 
@@ -158,7 +164,6 @@ export class SKK {
 
     // 各モードごとの処理
     switch (this.mode) {
-      // 直接モード
       case 'direct': {
         // かなモードの処理
         if (
@@ -211,7 +216,6 @@ export class SKK {
         break
       }
 
-      // 変換モード
       case 'conversion': {
         // 送り
         if (e.shiftKey && this.okuri === '') {
@@ -232,7 +236,7 @@ export class SKK {
           this.okuriKana = ''
         }
 
-        // 変換候補を表示させる
+        // 変換候補を検索
         if (e.key === ' ') {
           ignoreThisKey = true
 
@@ -240,22 +244,19 @@ export class SKK {
 
           this.okuriKana = this.okuri !== '' ? this.yomi.slice(-1) : ''
 
-          const candidates = this.dict.get(
-            (this.okuri !== '' ? this.yomi.slice(0, -1) : this.yomi) +
-              this.okuri,
-          )
+          this.entries =
+            this.dict.get(
+              (this.okuri !== '' ? this.yomi.slice(0, -1) : this.yomi) +
+                this.okuri,
+            ) ?? []
 
-          if (!candidates || candidates.length === 0) {
+          if (this.entries.length === 0) {
             this.entries = []
+
+            this.entriesIndex = -1
           } else {
             this.mode = 'candidate-select'
 
-            this.entries = candidates.map((c, i) => ({
-              annotation: c.annotation,
-              candidate: c.candidate + this.okuriKana,
-              id: i + 1,
-              label: CANDIDATE_LABEL.charAt(i),
-            }))
             this.entriesIndex = 0
           }
         }
@@ -263,16 +264,37 @@ export class SKK {
         break
       }
 
-      // 候補選択モードの処理
       case 'candidate-select': {
-        // 最初の候補で変換を確定
-        if (e.key === 'Enter' || (e.ctrlKey && e.key === 'j')) {
+        // 次の候補へ
+        if (e.key === ' ') {
           ignoreThisKey = true
 
-          await this.selectCandidate(0)
+          if (this.entriesIndex + 1 <= CANDIDATE_WINDOW_OPEN_NUM) {
+            this.entriesIndex++
+          } else {
+            this.entriesIndex += CANDIDATE_PAGE_SIZE
+          }
         }
 
-        // 変換候補から選択されたものを確定
+        // 表示中の候補で変換を確定
+        if (this.candidates.length === 0 && e.key !== ' ') {
+          // Shift が押されていたら変換モードにする
+          this.mode = e.shiftKey ? 'conversion' : 'direct'
+
+          this.letters =
+            (this.entries[this.entriesIndex].candidate ?? this.yomi) +
+            this.okuriKana
+
+          this.candidates = []
+          this.entries = []
+          this.entriesIndex = -1
+
+          this.yomi = ''
+          this.okuri = ''
+          this.okuriKana = ''
+        }
+
+        // 候補ウィンドウから選択されたものを確定
         else if (CANDIDATE_LABEL.includes(e.key)) {
           const selected = CANDIDATE_LABEL.indexOf(e.key)
 
@@ -357,55 +379,92 @@ export class SKK {
    * SKK の状態を IME に反映
    */
   private async setStatusToIme() {
-    // メニュー状態を更新
     await this.updateMenuItem()
 
-    // 候補表示
-    if (this.entries.length === 0) {
+    // 表示する候補がなければ候補ウィンドウを隠す
+    if (this.candidates.length === 0) {
       await this.ime.setCandidateWindowProperties({
         visible: false,
       })
-    } else {
-      await this.ime.setCandidateWindowProperties({
-        currentCandidateIndex: this.entriesIndex,
-        cursorVisible: false,
-        pageSize: 7,
-        totalCandidates: this.entries.length,
-        vertical: true,
-        visible: true,
-      })
-
-      await this.ime.setCandidates(this.entries)
     }
 
-    // 直接モードなら確定可能バッファを確定して空にし未確定バッファをプリエディトに表示
-    if (this.mode === 'direct') {
-      if (this.keys === '') {
-        await this.ime.clearComposition()
-      } else {
-        const composition = this.keys
+    switch (this.mode) {
+      case 'direct': {
+        if (this.keys === '') {
+          await this.ime.clearComposition()
+        } else {
+          const composition = this.keys
+
+          await this.ime.setComposition(composition, composition.length, {
+            selectionStart: 0,
+            selectionEnd: composition.length,
+          })
+        }
+
+        if (this.letters !== '' || this.yomi !== '') {
+          await this.ime.commitText(this.letters + this.yomi)
+
+          this.yomi = ''
+          this.letters = ''
+        }
+
+        break
+      }
+
+      case 'conversion': {
+        if (this.letters !== '') {
+          await this.ime.commitText(this.letters)
+
+          this.letters = ''
+        }
+
+        const composition = '▽' + this.yomi + this.okuriKana + this.keys
 
         await this.ime.setComposition(composition, composition.length, {
           selectionStart: 0,
           selectionEnd: composition.length,
         })
+
+        break
       }
 
-      if (this.letters !== '' || this.yomi !== '') {
-        await this.ime.commitText(this.letters + this.yomi)
+      case 'candidate-select': {
+        let yomiOrEntry = this.entries[this.entriesIndex].candidate
 
-        this.yomi = ''
-        this.letters = ''
+        if (this.entriesIndex >= CANDIDATE_WINDOW_OPEN_NUM) {
+          yomiOrEntry = this.yomi
+
+          this.candidates = this.entries
+            .slice(this.entriesIndex, this.entriesIndex + CANDIDATE_PAGE_SIZE)
+            .map((e, i) => ({
+              candidate: e.candidate,
+              id: i + 1,
+              label: CANDIDATE_LABEL[i],
+              annotation: e.annotation,
+            }))
+
+          await this.ime.setCandidateWindowProperties({
+            currentCandidateIndex:
+              this.entriesIndex - CANDIDATE_WINDOW_OPEN_NUM + 1,
+            cursorVisible: false,
+            pageSize: CANDIDATE_PAGE_SIZE,
+            totalCandidates: this.entries.length - CANDIDATE_WINDOW_OPEN_NUM,
+            vertical: true,
+            visible: true,
+          })
+
+          await this.ime.setCandidates(this.candidates)
+        }
+
+        const composition = '▽' + yomiOrEntry + this.okuriKana + this.keys
+
+        await this.ime.setComposition(composition, composition.length, {
+          selectionStart: 0,
+          selectionEnd: composition.length,
+        })
+
+        break
       }
-    }
-    // 変換モードならプリエディト領域に確定可能バッファ+未確定バッファを表示
-    else {
-      const composition = '▽' + this.yomi + this.okuriKana + this.keys
-
-      await this.ime.setComposition(composition, composition.length, {
-        selectionStart: 0,
-        selectionEnd: composition.length,
-      })
     }
   }
 
@@ -441,19 +500,21 @@ export class SKK {
   }
 
   /**
-   * 候補の単語を確定
+   * 候補ウィンドウの候補で確定
    *
    * @param index 候補の番号
    */
   private async selectCandidate(index: number) {
-    if (index < 0 || this.entries.length <= index) return
+    if (index < 0 || this.candidates.length <= index) return
 
     this.mode = 'direct'
 
     this.letters =
-      (this.entries[index]?.candidate ?? this.yomi) + this.okuriKana
+      (this.candidates[index].candidate ?? this.yomi) + this.okuriKana
 
+    this.candidates = []
     this.entries = []
+    this.entriesIndex = -1
 
     this.yomi = ''
     this.okuri = ''

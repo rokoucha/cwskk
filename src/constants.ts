@@ -43,3 +43,9 @@ export const MENU_ITEMS: MenuItem[] = [
     style: 'radio',
   },
 ]
+
+/** 候補ウィンドウ表示までの猶予回数 */
+export const CANDIDATE_WINDOW_OPEN_NUM = 3
+
+/** 候補ウィンドウに表示する候補数 */
+export const CANDIDATE_PAGE_SIZE = 7
