@@ -108,7 +108,7 @@ export const App: React.VFC = () => {
 
   return (
     <>
-      <h1>chrome.input.ime testpage</h1>
+      <h1>CWSKK Testpage</h1>
       {ready ? (
         <div
           style={{
