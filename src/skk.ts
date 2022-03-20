@@ -438,7 +438,7 @@ export class SKK {
 
     switch (this.mode) {
       case 'direct': {
-        if (this.keys === '') {
+        if (this.keys.length === 0) {
           await this.ime.clearComposition()
         } else {
           const composition = this.keys
@@ -468,10 +468,14 @@ export class SKK {
 
         const composition = '▽' + this.yomi + this.okuriKana + this.keys
 
-        await this.ime.setComposition(composition, composition.length, {
-          selectionStart: 0,
-          selectionEnd: composition.length,
-        })
+        if (composition.length <= 1) {
+          await this.ime.clearComposition()
+        } else {
+          await this.ime.setComposition(composition, composition.length, {
+            selectionStart: 0,
+            selectionEnd: composition.length,
+          })
+        }
 
         break
       }

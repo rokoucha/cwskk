@@ -18,6 +18,7 @@ export const App: React.VFC = () => {
 
   const [commit, setCommit] = useState('')
   const [composition, setComposition] = useState('')
+  const [cursor, setCursor] = useState(0)
 
   const [candidates, setCandidates] = useState<CandidateTemplate[]>([])
   const [candidateWindowProperties, setCandidateWindowProperties] =
@@ -28,10 +29,18 @@ export const App: React.VFC = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
 
   const [stateSKK, setupSKK] = useSKK({
-    clearComposition: async (): Promise<void> => setComposition(''),
+    clearComposition: async (): Promise<void> => {
+      console.log('clear', cursor, commit)
+      setCursor((prev) =>
+        commit.length <= prev ? prev - composition.length : commit.length,
+      )
+      setComposition('')
+    },
 
-    commitText: async (text: string): Promise<void> =>
-      setCommit((prev) => prev + text),
+    commitText: async (text: string): Promise<void> => {
+      setCommit((prev) => prev + text)
+      setCursor((prev) => prev + text.length)
+    },
 
     setCandidates: async (candidates: CandidateTemplate[]): Promise<void> =>
       setCandidates(candidates),
@@ -61,7 +70,12 @@ export const App: React.VFC = () => {
         selectionStart?: number | undefined
         selectionEnd?: number | undefined
       },
-    ): Promise<void> => setComposition(text),
+    ): Promise<void> => {
+      setComposition(text)
+      setCursor((prev) =>
+        commit.length <= prev ? prev + cursor : commit.length,
+      )
+    },
 
     setMenuItems: async (items: MenuItem[]): Promise<void> => {
       setMenuItems(items)
@@ -102,6 +116,7 @@ export const App: React.VFC = () => {
 
       if (e.key === 'Backspace') {
         setCommit((prev) => prev.slice(0, -1))
+        setCursor((prev) => prev - 1)
       }
     },
     [skk],
@@ -121,7 +136,7 @@ export const App: React.VFC = () => {
     <>
       <h1>CWSKK Testpage</h1>
       {skk ? (
-        <Textbox commit={commit} composition={composition} />
+        <Textbox commit={commit} composition={composition} cursor={cursor} />
       ) : (
         <p>Loading...</p>
       )}
