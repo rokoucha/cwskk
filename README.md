@@ -4,6 +4,8 @@ Coward SKK (Simple Kana to Kanji conversion program)
 
 ChromeOS 向けのウェブ技術による SKK 実装、誠意開発中。
 
+<https://cwskk.pages.dev/> で試せます。
+
 ## ビルド方法
 
 1. リポジトリをクローン: `git clone https://github.com/rokoucha/cwskk.git` して `cd cwskk`
