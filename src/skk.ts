@@ -218,7 +218,7 @@ export class SKK {
 
       case 'conversion': {
         // 送り
-        if (e.shiftKey && this.okuri === '') {
+        if (e.shiftKey && this.okuri === '' && this.yomi !== '') {
           this.okuri = e.key.toLowerCase()
         }
 
@@ -259,6 +259,54 @@ export class SKK {
 
             this.entriesIndex = 0
           }
+        }
+
+        // ひらがな⇄カタカナ変換
+        if (e.key === 'q') {
+          this.mode = 'direct'
+
+          ignoreThisKey = true
+
+          this.keyToYomi(true)
+
+          switch (this.letterMode) {
+            case 'hiragana': {
+              this.letters = [...this.yomi]
+                .map((yomi) => {
+                  const rule = this.table.kana.rule.find(
+                    ([_key, [hira, _kata]]) => hira === yomi,
+                  )
+                  return rule ? rule[1][1] : ''
+                })
+                .join('')
+
+              break
+            }
+
+            case 'katakana': {
+              this.letters = [...this.yomi]
+                .map((yomi) => {
+                  const rule = this.table.kana.rule.find(
+                    ([_key, [_hira, kata]]) => kata === yomi,
+                  )
+                  return rule ? rule[1][0] : ''
+                })
+                .join('')
+
+              break
+            }
+
+            case 'halfkana': {
+              this.letters = this.yomi
+
+              break
+            }
+          }
+
+          this.keys = ''
+          this.yomi = ''
+          this.okuri = ''
+          this.okuriKana = ''
         }
 
         break
