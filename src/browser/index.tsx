@@ -14,6 +14,10 @@ type CandidateWindowProperties = {
 export const App: React.VFC = () => {
   const [ready, setReady] = useState(false)
 
+  const [ctrlKey, setCtrlKey] = useState(false)
+  const [shiftKey, setShiftKey] = useState(false)
+  const [key, setKey] = useState('')
+
   const [commit, setCommit] = useState('')
   const [composition, setComposition] = useState('')
 
@@ -86,6 +90,12 @@ export const App: React.VFC = () => {
     async (e: KeyboardEvent) => {
       if (!ready) return
 
+      e.preventDefault()
+
+      setCtrlKey(e.ctrlKey)
+      setShiftKey(e.shiftKey)
+      setKey(e.key)
+
       const handled = await skk.onKeyEvent(e)
 
       if (handled || e.type !== 'keydown') return
@@ -141,13 +151,29 @@ export const App: React.VFC = () => {
             is SKK ready?
             <input readOnly type="checkbox" checked={ready} />
           </label>
-          <label>
-            committed text
-            <input readOnly value={commit} />
+          <label style={{ marginLeft: '0.5rem' }}>
+            ctrlKey?
+            <input readOnly type="checkbox" checked={ctrlKey} />
           </label>
-          <label>
+          <label style={{ marginLeft: '0.5rem' }}>
+            shiftKey?
+            <input readOnly type="checkbox" checked={shiftKey} />
+          </label>
+          <label style={{ marginLeft: '0.5rem' }}>
+            key
+            <input readOnly value={key} style={{ marginLeft: '0.2rem' }} />
+          </label>
+          <label style={{ marginLeft: '0.5rem' }}>
+            committed text
+            <input readOnly value={commit} style={{ marginLeft: '0.2rem' }} />
+          </label>
+          <label style={{ marginLeft: '0.5rem' }}>
             composition text
-            <input readOnly value={composition} />
+            <input
+              readOnly
+              value={composition}
+              style={{ marginLeft: '0.2rem' }}
+            />
           </label>
         </div>
         <div>
