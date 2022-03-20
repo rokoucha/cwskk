@@ -81,3 +81,12 @@ export interface SKKContainer {}
 export interface SKKContainerConstructor {
   new (skk: typeof SKK): SKKContainer
 }
+
+export type CandidateWindowProperties = {
+  currentCandidateIndex?: number
+  cursorVisible?: boolean
+  pageSize?: number
+  totalCandidates?: number
+  vertical?: boolean
+  visible?: boolean
+}
