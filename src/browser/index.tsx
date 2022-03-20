@@ -114,6 +114,7 @@ export const App: React.VFC = () => {
           style={{
             border: 'thin solid',
             boxSizing: 'border-box',
+            cursor: 'text',
             padding: '0.1rem',
             height: '1.8rem',
             width: '100%',
