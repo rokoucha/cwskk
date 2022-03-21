@@ -14,12 +14,7 @@ import {
   updateMenuItems,
 } from './chromeInputIme'
 import type { SKK } from '../skk'
-import type {
-  CandidateTemplate,
-  MenuItem,
-  SKKContainer,
-  SKKContainerConstructor,
-} from '../types'
+import type { SKKContainer, SKKContainerConstructor } from '../types'
 
 export const ChromeSKKContainer: SKKContainerConstructor = class ChromeSKKContainer
   implements SKKContainer
@@ -32,41 +27,36 @@ export const ChromeSKKContainer: SKKContainerConstructor = class ChromeSKKContai
     this.engineId = ''
     this.contextId = -1
 
-    this.skk = new skk({
-      clearComposition: async (): Promise<void> => {
-        await clearComposition({ contextID: this.contextId })
-      },
+    this.skk = new skk()
 
-      commitText: async (text: string): Promise<void> => {
-        await commitText({ contextID: this.contextId, text })
-      },
+    this.skk.addEventListener('clearComposition', async () => {
+      await clearComposition({ contextID: this.contextId })
+    })
 
-      setCandidates: async (candidates: CandidateTemplate[]): Promise<void> => {
+    this.skk.addEventListener('commitText', async ({ detail: { text } }) => {
+      await commitText({ contextID: this.contextId, text })
+    })
+
+    this.skk.addEventListener(
+      'setCandidates',
+      async ({ detail: { candidates } }) => {
         await setCandidates({ contextID: this.contextId, candidates })
       },
+    )
 
-      setCandidateWindowProperties: async (properties: {
-        currentCandidateIndex?: number
-        cursorVisible?: boolean
-        pageSize?: number
-        totalCandidates?: number
-        vertical?: boolean
-        visible?: boolean
-      }): Promise<void> => {
+    this.skk.addEventListener(
+      'setCandidateWindowProperties',
+      async ({ detail: properties }) => {
         await setCandidateWindowProperties({
           engineID: this.engineId,
           properties,
         })
       },
+    )
 
-      setComposition: async (
-        text: string,
-        cursor: number,
-        properties?: {
-          selectionStart?: number | undefined
-          selectionEnd?: number | undefined
-        },
-      ): Promise<void> => {
+    this.skk.addEventListener(
+      'setComposition',
+      async ({ detail: { text, cursor, properties } }) => {
         await setComposition({
           contextID: this.contextId,
           text,
@@ -74,15 +64,18 @@ export const ChromeSKKContainer: SKKContainerConstructor = class ChromeSKKContai
           ...properties,
         })
       },
+    )
 
-      setMenuItems: async (items: MenuItem[]): Promise<void> => {
-        await setMenuItems({ engineID: this.engineId, items })
-      },
+    this.skk.addEventListener('setMenuItems', async ({ detail: { items } }) => {
+      await setMenuItems({ engineID: this.engineId, items })
+    })
 
-      updateMenuItems: async (items: MenuItem[]): Promise<void> => {
+    this.skk.addEventListener(
+      'updateMenuItems',
+      async ({ detail: { items } }) => {
         await updateMenuItems({ engineID: this.engineId, items })
       },
-    })
+    )
 
     onActive.addListener(async (engineID) => {
       this.engineId = engineID
