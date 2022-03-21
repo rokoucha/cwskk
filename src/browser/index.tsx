@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { SKK } from '../skk'
+import { SKK, SKKIMEEvent, SKKIMEEventHandler, SKKIMEEvents } from '../skk'
 import type {
   CandidateTemplate,
   CandidateWindowProperties,
@@ -7,10 +7,9 @@ import type {
 } from '../types'
 import { Status } from './status'
 import { Textbox } from './textbox'
-import { useSKK } from './useSKK'
 
 export const App: React.VFC = () => {
-  const [skk, setSKK] = useState<SKK | null>(null)
+  const [ready, setReady] = useState(false)
 
   const [ctrlKey, setCtrlKey] = useState(false)
   const [shiftKey, setShiftKey] = useState(false)
@@ -28,60 +27,65 @@ export const App: React.VFC = () => {
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
 
-  const [stateSKK, setupSKK] = useSKK({
-    clearComposition: async (): Promise<void> => {
+  const skk = useMemo(() => new SKK(), [])
+
+  const clearCompositionHandler: SKKIMEEventHandler<'clearComposition'> =
+    useCallback(() => {
       console.log('clear', cursor, commit)
       setCursor((prev) =>
-        commit.length <= prev ? prev - composition.length : commit.length,
+        commit.length <= prev ? prev - composition.length : prev,
       )
       setComposition('')
-    },
+    }, [cursor, commit, composition])
 
-    commitText: async (text: string): Promise<void> => {
-      setCommit((prev) => prev + text)
+  const commitTextHandler: SKKIMEEventHandler<'commitText'> = useCallback(
+    ({ detail: { text } }) => {
+      console.log('commit received', commit, text, cursor)
+      setCommit((prev) => prev.slice(0, cursor) + text + prev.slice(cursor))
       setCursor((prev) => prev + text.length)
     },
+    [commit, cursor],
+  )
 
-    setCandidates: async (candidates: CandidateTemplate[]): Promise<void> =>
-      setCandidates(candidates),
+  const setCandidatesHandler: SKKIMEEventHandler<'setCandidates'> = useCallback(
+    ({ detail: { candidates } }) => setCandidates(candidates),
+    [],
+  )
 
-    setCandidateWindowProperties: async (properties: {
-      currentCandidateIndex?: number
-      cursorVisible?: boolean
-      pageSize?: number
-      totalCandidates?: number
-      vertical?: boolean
-      visible?: boolean
-    }): Promise<void> =>
-      setCandidateWindowProperties((prev) => ({
-        currentCandidateIndex:
-          properties.currentCandidateIndex ?? prev.currentCandidateIndex,
-        cursorVisible: properties.cursorVisible ?? prev.cursorVisible,
-        pageSize: properties.pageSize ?? prev.pageSize,
-        totalCandidates: properties.totalCandidates ?? prev.totalCandidates,
-        vertical: properties.vertical ?? prev.vertical,
-        visible: properties.visible ?? prev.visible,
-      })),
+  const setCandidateWindowPropertiesHandler: SKKIMEEventHandler<'setCandidateWindowProperties'> =
+    useCallback(
+      ({ detail: properties }) =>
+        setCandidateWindowProperties((prev) => ({
+          currentCandidateIndex:
+            properties.currentCandidateIndex ?? prev.currentCandidateIndex,
+          cursorVisible: properties.cursorVisible ?? prev.cursorVisible,
+          pageSize: properties.pageSize ?? prev.pageSize,
+          totalCandidates: properties.totalCandidates ?? prev.totalCandidates,
+          vertical: properties.vertical ?? prev.vertical,
+          visible: properties.visible ?? prev.visible,
+        })),
+      [],
+    )
 
-    setComposition: async (
-      text: string,
-      cursor: number,
-      properties?: {
-        selectionStart?: number | undefined
-        selectionEnd?: number | undefined
+  const setCompositionHandler: SKKIMEEventHandler<'setComposition'> =
+    useCallback(
+      ({ detail: { text, cursor } }) => {
+        console.log('composition received', commit, text, cursor)
+        setComposition(text)
+        setCursor((prev) => (prev < cursor ? commit.length + cursor : prev))
       },
-    ): Promise<void> => {
-      setComposition(text)
-      setCursor((prev) =>
-        commit.length <= prev ? prev + cursor : commit.length,
-      )
-    },
+      [commit],
+    )
 
-    setMenuItems: async (items: MenuItem[]): Promise<void> => {
+  const setMenuItemsHandler: SKKIMEEventHandler<'setMenuItems'> = useCallback(
+    ({ detail: { items } }) => {
       setMenuItems(items)
     },
+    [],
+  )
 
-    updateMenuItems: async (items: MenuItem[]): Promise<void> => {
+  const updateMenuItemsHandler: SKKIMEEventHandler<'updateMenuItems'> =
+    useCallback(({ detail: { items } }) => {
       setMenuItems((prev) => {
         for (const item of items) {
           const i = prev.findIndex((p) => p.id === item.id)
@@ -91,14 +95,52 @@ export const App: React.VFC = () => {
 
         return prev
       })
-    },
-  })
+    }, [])
 
   useEffect(() => {
-    if (stateSKK === 'not-ready') {
-      setupSKK().then((skk) => setSKK(skk))
+    setTimeout(() => {
+      skk.addEventListener('clearComposition', clearCompositionHandler)
+      skk.addEventListener('commitText', commitTextHandler)
+      skk.addEventListener('setCandidates', setCandidatesHandler)
+      skk.addEventListener(
+        'setCandidateWindowProperties',
+        setCandidateWindowPropertiesHandler,
+      )
+      skk.addEventListener('setComposition', setCompositionHandler)
+      skk.addEventListener('setMenuItems', setMenuItemsHandler)
+      skk.addEventListener('updateMenuItems', updateMenuItemsHandler)
+    })
+
+    return () => {
+      setTimeout(() => {
+        skk.removeEventListener('clearComposition', clearCompositionHandler)
+        skk.removeEventListener('commitText', commitTextHandler)
+        skk.removeEventListener('setCandidates', setCandidatesHandler)
+        skk.removeEventListener(
+          'setCandidateWindowProperties',
+          setCandidateWindowPropertiesHandler,
+        )
+        skk.removeEventListener('setComposition', setCompositionHandler)
+        skk.removeEventListener('setMenuItems', setMenuItemsHandler)
+        skk.removeEventListener('updateMenuItems', updateMenuItemsHandler)
+      })
     }
-  }, [skk, setupSKK])
+  }, [
+    skk,
+    clearCompositionHandler,
+    commitTextHandler,
+    setCandidatesHandler,
+    setCandidateWindowPropertiesHandler,
+    setCompositionHandler,
+    setMenuItemsHandler,
+    updateMenuItemsHandler,
+  ])
+
+  useEffect(() => {
+    if (!ready) {
+      skk.setup().then(() => setReady(true))
+    }
+  }, [skk, ready])
 
   const onKeyEvent = useCallback(
     async (e: KeyboardEvent) => {
@@ -117,6 +159,13 @@ export const App: React.VFC = () => {
       if (e.key === 'Backspace') {
         setCommit((prev) => prev.slice(0, -1))
         setCursor((prev) => prev - 1)
+      }
+
+      if (e.key === 'ArrowLeft') {
+        setCursor((prev) => (prev > 0 ? prev - 1 : 0))
+      }
+      if (e.key === 'ArrowRight') {
+        setCursor((prev) => prev + 1)
       }
     },
     [skk],
@@ -149,7 +198,7 @@ export const App: React.VFC = () => {
         ctrlKey={ctrlKey}
         keyText={keyText}
         menuItems={menuItems}
-        ready={stateSKK === 'ready'}
+        ready={ready}
         shiftKey={shiftKey}
       />
     </>

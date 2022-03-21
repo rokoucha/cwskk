@@ -16,34 +16,60 @@ import type {
   MenuItem,
 } from './types'
 
-export type SKKIMEMethods = {
-  clearComposition(): Promise<void>
-  commitText(text: string): Promise<void>
-  setCandidates(candidates: CandidateTemplate[]): Promise<void>
-  setCandidateWindowProperties(properties: {
+class CustomNamedEvent<K, T> extends Event {
+  readonly detail: T
+
+  constructor(type: K, eventInitDict?: CustomEventInit<T>) {
+    super(type as any as string, eventInitDict)
+
+    this.detail = eventInitDict?.detail!
+  }
+}
+
+export type SKKIMEEvents = {
+  clearComposition: void
+  commitText: { text: string }
+  setCandidates: { candidates: CandidateTemplate[] }
+  setCandidateWindowProperties: {
     currentCandidateIndex?: number
     cursorVisible?: boolean
     pageSize?: number
     totalCandidates?: number
     vertical?: boolean
     visible?: boolean
-  }): Promise<void>
-  setComposition(
-    text: string,
-    cursor: number,
+  }
+  setComposition: {
+    text: string
+    cursor: number
     properties?: {
       selectionStart?: number | undefined
       selectionEnd?: number | undefined
-    },
-  ): Promise<void>
-  setMenuItems(items: MenuItem[]): Promise<void>
-  updateMenuItems(items: MenuItem[]): Promise<void>
+    }
+  }
+  setMenuItems: { items: MenuItem[] }
+  updateMenuItems: { items: MenuItem[] }
+}
+
+export type SKKIMEEvent<T extends keyof SKKIMEEvents> = CustomNamedEvent<
+  T,
+  SKKIMEEvents[T]
+>
+
+export type SKKIMEEventHandler<T extends keyof SKKIMEEvents> = (
+  ev: SKKIMEEvent<T>,
+) => void | Promise<void>
+
+type Handlers<T extends Record<string, any>> = {
+  [K in keyof T]: Set<(ev: CustomNamedEvent<K, T[K]>) => void | Promise<void>>
 }
 
 /**
  * SKK - Simple Kana to Kanji conversion program
  */
 export class SKK {
+  /** IME の機能を呼び出す為のハンドラリスト */
+  private handlers: Handlers<SKKIMEEvents>
+
   /** 辞書 */
   private dict: Entries
 
@@ -55,9 +81,6 @@ export class SKK {
 
   /** 選択中の候補  */
   private entriesIndex: number
-
-  /** IME の機能を呼び出す為の関数リスト */
-  private ime: SKKIMEMethods
 
   /** 入力モード */
   private letterMode: LetterMode
@@ -85,10 +108,18 @@ export class SKK {
 
   /**
    * コンストラクタ
-   *
-   * @param ime IME の機能を呼び出す為の関数リスト
    */
-  constructor(ime: SKKIMEMethods) {
+  constructor() {
+    this.handlers = {
+      clearComposition: new Set(),
+      commitText: new Set(),
+      setCandidates: new Set(),
+      setCandidateWindowProperties: new Set(),
+      setComposition: new Set(),
+      setMenuItems: new Set(),
+      updateMenuItems: new Set(),
+    }
+
     this.dict = new Map()
     this.candidates = []
     this.entries = []
@@ -105,8 +136,63 @@ export class SKK {
 
     this.okuri = ''
     this.okuriKana = ''
+  }
 
-    this.ime = ime
+  /**
+   * IME の機能を呼び出すイベントのリスナーを追加
+   *
+   * @param type 機能の種類
+   * @param callback IME の機能を提供するリスナー
+   */
+  public addEventListener<T extends keyof SKKIMEEvents>(
+    type: T,
+    callback: (
+      ev: CustomNamedEvent<T, SKKIMEEvents[T]>,
+    ) => void | Promise<void>,
+  ) {
+    this.handlers[type].add(callback)
+  }
+
+  /**
+   * IME の機能を呼び出すイベントのリスナーを削除
+   *
+   * @param type 機能の種類
+   * @param callback IME の機能を提供するリスナー
+   */
+  public removeEventListener<T extends keyof SKKIMEEvents>(
+    type: T,
+    callback: (
+      ev: CustomNamedEvent<T, SKKIMEEvents[T]>,
+    ) => void | Promise<void>,
+  ) {
+    this.handlers[type].delete(callback)
+  }
+
+  /**
+   * IME の機能を呼び出す(EventTarget 互換)
+   *
+   * @param ev 機能のイベント
+   */
+  public dispatchEvent<
+    T extends CustomNamedEvent<
+      keyof SKKIMEEvents,
+      SKKIMEEvents[keyof SKKIMEEvents]
+    >,
+  >(ev: T) {
+    this.handlers[ev.type as keyof SKKIMEEvents].forEach((h) => h(ev as any))
+  }
+
+  /**
+   * IME の機能を呼び出す(内部用)
+   *
+   * @param type 機能の種類
+   * @param detail 引数
+   */
+  private dispatchImeMethod<T extends keyof SKKIMEEvents>(
+    type: T,
+    detail: SKKIMEEvents[T],
+  ) {
+    this.dispatchEvent(new CustomNamedEvent(type, { detail }))
   }
 
   /**
@@ -431,26 +517,32 @@ export class SKK {
 
     // 表示する候補がなければ候補ウィンドウを隠す
     if (this.candidates.length === 0) {
-      await this.ime.setCandidateWindowProperties({
-        visible: false,
-      })
+      this.dispatchImeMethod('setCandidateWindowProperties', { visible: true })
     }
 
     switch (this.mode) {
       case 'direct': {
         if (this.keys.length === 0) {
-          await this.ime.clearComposition()
+          this.dispatchImeMethod('clearComposition', undefined)
         } else {
           const composition = this.keys
 
-          await this.ime.setComposition(composition, composition.length, {
-            selectionStart: 0,
-            selectionEnd: composition.length,
+          this.dispatchImeMethod('setComposition', {
+            text: composition,
+            cursor: composition.length,
+            properties: {
+              selectionStart: 0,
+              selectionEnd: composition.length,
+            },
           })
         }
 
         if (this.letters !== '' || this.yomi !== '') {
-          await this.ime.commitText(this.letters + this.yomi)
+          console.log('direct commit', this.letters, this.yomi)
+
+          this.dispatchImeMethod('commitText', {
+            text: this.letters + this.yomi,
+          })
 
           this.yomi = ''
           this.letters = ''
@@ -461,7 +553,9 @@ export class SKK {
 
       case 'conversion': {
         if (this.letters !== '') {
-          await this.ime.commitText(this.letters)
+          console.log('conversion commit', this.letters)
+
+          this.dispatchImeMethod('commitText', { text: this.letters })
 
           this.letters = ''
         }
@@ -469,11 +563,15 @@ export class SKK {
         const composition = '▽' + this.yomi + this.okuriKana + this.keys
 
         if (composition.length <= 1) {
-          await this.ime.clearComposition()
+          this.dispatchImeMethod('clearComposition', undefined)
         } else {
-          await this.ime.setComposition(composition, composition.length, {
-            selectionStart: 0,
-            selectionEnd: composition.length,
+          this.dispatchImeMethod('setComposition', {
+            text: composition,
+            cursor: composition.length,
+            properties: {
+              selectionStart: 0,
+              selectionEnd: composition.length,
+            },
           })
         }
 
@@ -495,7 +593,7 @@ export class SKK {
               annotation: e.annotation,
             }))
 
-          await this.ime.setCandidateWindowProperties({
+          this.dispatchImeMethod('setCandidateWindowProperties', {
             currentCandidateIndex:
               this.entriesIndex - CANDIDATE_WINDOW_OPEN_NUM + 1,
             cursorVisible: false,
@@ -505,14 +603,17 @@ export class SKK {
             visible: true,
           })
 
-          await this.ime.setCandidates(this.candidates)
+          this.dispatchImeMethod('setCandidates', {
+            candidates: this.candidates,
+          })
         }
 
         const composition = '▽' + yomiOrEntry + this.okuriKana + this.keys
 
-        await this.ime.setComposition(composition, composition.length, {
-          selectionStart: 0,
-          selectionEnd: composition.length,
+        this.dispatchImeMethod('setComposition', {
+          text: composition,
+          cursor: composition.length,
+          properties: { selectionStart: 0, selectionEnd: composition.length },
         })
 
         break
@@ -533,7 +634,7 @@ export class SKK {
    * メニューの内容を設定
    */
   private async setMenuItems() {
-    await this.ime.setMenuItems(MENU_ITEMS)
+    this.dispatchImeMethod('setMenuItems', { items: MENU_ITEMS })
   }
 
   /**
@@ -548,7 +649,7 @@ export class SKK {
 
     item.checked = true
 
-    await this.ime.updateMenuItems([item])
+    this.dispatchImeMethod('updateMenuItems', { items: [item] })
   }
 
   /**

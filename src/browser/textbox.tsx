@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 
 export const Textbox: React.VFC<{
   commit: string
@@ -36,7 +36,9 @@ export const Textbox: React.VFC<{
     compositons.push(true)
   }
 
-  console.log(cursor, commits, compositons)
+  useEffect(() => {
+    console.log(cursor, commits, compositons)
+  }, [cursor, commit, composition])
 
   return (
     <div
