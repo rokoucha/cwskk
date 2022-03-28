@@ -863,6 +863,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/runes@npm:^0.4.1":
+  version: 0.4.1
+  resolution: "@types/runes@npm:0.4.1"
+  checksum: ae63458a281a3ef00cf461ace7192227bdf00ae134d8aad26dacc7d0cd4ac93fd33d3a986902ca86563bdb76ed32a553210d229d6ed0ca1d159d9e7de57ed69b
+  languageName: node
+  linkType: hard
+
 "@types/scheduler@npm:*":
   version: 0.16.2
   resolution: "@types/scheduler@npm:0.16.2"
@@ -1475,6 +1482,7 @@ __metadata:
     "@types/pako": ^1.0.3
     "@types/react": ^17.0.40
     "@types/react-dom": ^17.0.13
+    "@types/runes": ^0.4.1
     "@yarnpkg/esbuild-plugin-pnp": ^2.0.1
     esbuild: 0.14.27
     jest: 27.5.1
@@ -1482,6 +1490,7 @@ __metadata:
     prettier: 2.6.0
     react: 17.0.2
     react-dom: 17.0.2
+    runes: ^0.4.3
     ts-jest: 27.1.3
     typescript: 4.6.2
   languageName: unknown
@@ -3681,6 +3690,13 @@ __metadata:
   bin:
     rimraf: bin.js
   checksum: 87f4164e396f0171b0a3386cc1877a817f572148ee13a7e113b238e48e8a9f2f31d009a92ec38a591ff1567d9662c6b67fd8818a2dbbaed74bc26a87a2a4a9a0
+  languageName: node
+  linkType: hard
+
+"runes@npm:^0.4.3":
+  version: 0.4.3
+  resolution: "runes@npm:0.4.3"
+  checksum: 8bb7a16eb75799fe8a3a9cb06fa622f3ee3e3d1116897ac48e8238fc40aeba74d77232d6a7b1afedc9fa96fd6075b4dbbed6c85d4e66df9b727c5056225fc177
   languageName: node
   linkType: hard
 

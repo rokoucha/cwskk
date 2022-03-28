@@ -1,7 +1,12 @@
 import type { MenuItem } from './types'
 
 /** 処理可能な特殊キー */
-export const ACCEPTABLE_SPECIAL_KEYS = ['Enter', 'Backspace']
+export const ACCEPTABLE_SPECIAL_KEYS = [
+  'ArrowLeft',
+  'ArrowRight',
+  'Backspace',
+  'Enter',
+]
 
 /** 候補選択に使用するキー */
 export const CANDIDATE_LABEL = 'asdfjkl'

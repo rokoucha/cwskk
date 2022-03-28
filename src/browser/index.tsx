@@ -17,6 +17,7 @@ export const App: React.VFC = () => {
 
   const [commit, setCommit] = useState('')
   const [composition, setComposition] = useState('')
+  const [compositionCursor, setCompositionCursor] = useState(0)
   const [cursor, setCursor] = useState(0)
 
   const [candidates, setCandidates] = useState<CandidateTemplate[]>([])
@@ -31,20 +32,16 @@ export const App: React.VFC = () => {
 
   const clearCompositionHandler: SKKIMEEventHandler<'clearComposition'> =
     useCallback(() => {
-      console.log('clear', cursor, commit)
-      setCursor((prev) =>
-        commit.length <= prev ? prev - composition.length : prev,
-      )
       setComposition('')
-    }, [cursor, commit, composition])
+      setCompositionCursor(0)
+    }, [])
 
   const commitTextHandler: SKKIMEEventHandler<'commitText'> = useCallback(
     ({ detail: { text } }) => {
-      console.log('commit received', commit, text, cursor)
       setCommit((prev) => prev.slice(0, cursor) + text + prev.slice(cursor))
       setCursor((prev) => prev + text.length)
     },
-    [commit, cursor],
+    [cursor],
   )
 
   const setCandidatesHandler: SKKIMEEventHandler<'setCandidates'> = useCallback(
@@ -68,14 +65,10 @@ export const App: React.VFC = () => {
     )
 
   const setCompositionHandler: SKKIMEEventHandler<'setComposition'> =
-    useCallback(
-      ({ detail: { text, cursor } }) => {
-        console.log('composition received', commit, text, cursor)
-        setComposition(text)
-        setCursor((prev) => (prev < cursor ? commit.length + cursor : prev))
-      },
-      [commit],
-    )
+    useCallback(({ detail: { text, cursor } }) => {
+      setComposition(text)
+      setCompositionCursor(cursor)
+    }, [])
 
   const setMenuItemsHandler: SKKIMEEventHandler<'setMenuItems'> = useCallback(
     ({ detail: { items } }) => {
@@ -146,26 +139,43 @@ export const App: React.VFC = () => {
     async (e: KeyboardEvent) => {
       if (!skk) return
 
-      e.preventDefault()
-
       setCtrlKey(e.ctrlKey)
       setShiftKey(e.shiftKey)
       setKeyText(e.key)
 
-      const handled = await skk.onKeyEvent(e)
+      let handled = await skk.onKeyEvent(e)
 
-      if (handled || e.type !== 'keydown') return
+      if (handled || e.type !== 'keydown') {
+        e.preventDefault()
 
-      if (e.key === 'Backspace') {
-        setCommit((prev) => prev.slice(0, -1))
-        setCursor((prev) => prev - 1)
+        return
       }
 
-      if (e.key === 'ArrowLeft') {
-        setCursor((prev) => (prev > 0 ? prev - 1 : 0))
-      }
-      if (e.key === 'ArrowRight') {
-        setCursor((prev) => prev + 1)
+      switch (e.key) {
+        case 'Backspace': {
+          e.preventDefault()
+
+          setCommit((prev) => prev.slice(0, -1))
+          setCursor((prev) => prev - 1)
+
+          break
+        }
+
+        case 'ArrowLeft': {
+          e.preventDefault()
+
+          setCursor((prev) => (prev > 0 ? prev - 1 : 0))
+
+          break
+        }
+
+        case 'ArrowRight': {
+          e.preventDefault()
+
+          setCursor((prev) => prev + 1)
+
+          break
+        }
       }
     },
     [skk],
@@ -185,7 +195,12 @@ export const App: React.VFC = () => {
     <>
       <h1>CWSKK Testpage</h1>
       {skk ? (
-        <Textbox commit={commit} composition={composition} cursor={cursor} />
+        <Textbox
+          commit={commit}
+          composition={composition}
+          compositionCursor={compositionCursor}
+          cursor={cursor}
+        />
       ) : (
         <p>Loading...</p>
       )}

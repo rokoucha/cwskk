@@ -1,44 +1,38 @@
 import React, { useEffect } from 'react'
+import { slice } from '../utils'
+
+const Cursor: React.VFC = () => (
+  <span
+    style={{
+      borderRight: '1px solid black',
+    }}
+  />
+)
 
 export const Textbox: React.VFC<{
   commit: string
   composition: string
+  compositionCursor: number
   cursor: number
-}> = ({ commit, composition, cursor }) => {
+}> = ({ commit, composition, compositionCursor, cursor }) => {
   const commits: (string | true)[] = []
-  const compositons: (string | true)[] = []
+  const compositions: (string | true)[] = []
 
-  if (cursor < commit.length) {
-    commits.push(commit.slice(0, cursor))
-    commits.push(true)
-    commits.push(commit.slice(cursor))
-  } else {
-    commits.push(commit)
+  commits.push(
+    ...[slice(commit, 0, cursor), true as const, slice(commit, cursor)].filter(
+      (t) => t !== '',
+    ),
+  )
+
+  if (composition !== '') {
+    compositions.push(
+      ...[
+        slice(composition, 0, compositionCursor),
+        true as const,
+        slice(composition, compositionCursor),
+      ].filter((t) => t !== ''),
+    )
   }
-
-  if (cursor === commit.length && composition.length === 0) {
-    commits.push(true)
-  }
-
-  if (commit.length < cursor && cursor - commit.length < composition.length) {
-    compositons.push(composition.slice(0, cursor - commit.length))
-    compositons.push(true)
-    compositons.push(composition.slice(cursor - commit.length))
-  } else {
-    compositons.push(composition)
-  }
-
-  if (
-    commit.length < cursor &&
-    commit.length + composition.length <= cursor &&
-    composition.length > 0
-  ) {
-    compositons.push(true)
-  }
-
-  useEffect(() => {
-    console.log(cursor, commits, compositons)
-  }, [cursor, commit, composition])
 
   return (
     <div
@@ -51,32 +45,19 @@ export const Textbox: React.VFC<{
         width: '100%',
       }}
     >
-      {commits.map((t, i) =>
-        t === true ? (
-          <span
-            key={i}
-            style={{
-              borderRight: '1px solid black',
-              paddingRight: '1px',
-            }}
-          />
-        ) : (
-          <span key={i}>{t}</span>
-        ),
-      )}
-      {compositons.map((t, i) =>
-        t === true ? (
-          <span
-            key={i}
-            style={{
-              borderRight: '1px solid black',
-              paddingRight: '1px',
-            }}
-          />
-        ) : (
-          <span key={i}>{t}</span>
-        ),
-      )}
+      <span>
+        {commits.map((t) =>
+          t !== true ? (
+            t
+          ) : compositions.length === 0 ? (
+            <Cursor />
+          ) : (
+            <span>
+              {compositions.map((c) => (c !== true ? c : <Cursor />))}
+            </span>
+          ),
+        )}
+      </span>
     </div>
   )
 }

@@ -106,6 +106,9 @@ export class SKK {
   /** 送り(かな) */
   private okuriKana: string
 
+  /** 未確定文字列のカーソル位置 */
+  private cursor: number
+
   /**
    * コンストラクタ
    */
@@ -136,6 +139,8 @@ export class SKK {
 
     this.okuri = ''
     this.okuriKana = ''
+
+    this.cursor = 0
   }
 
   /**
@@ -296,6 +301,7 @@ export class SKK {
             this.yomi = ''
             this.okuri = ''
             this.okuriKana = ''
+            this.cursor = 0
           }
         }
 
@@ -320,6 +326,22 @@ export class SKK {
           this.yomi = ''
           this.okuri = ''
           this.okuriKana = ''
+          this.cursor = 0
+        }
+
+        if (e.key === 'ArrowLeft') {
+          ignoreThisKey = true
+
+          this.cursor = 0 < this.cursor ? this.cursor - 1 : 0
+        }
+
+        if (e.key === 'ArrowRight') {
+          ignoreThisKey = true
+
+          this.cursor =
+            this.cursor < (this.yomi + this.okuriKana + this.keys).length
+              ? this.cursor + 1
+              : this.cursor
         }
 
         // 変換候補を検索
@@ -393,6 +415,7 @@ export class SKK {
           this.yomi = ''
           this.okuri = ''
           this.okuriKana = ''
+          this.cursor = 0
         }
 
         break
@@ -426,6 +449,7 @@ export class SKK {
           this.yomi = ''
           this.okuri = ''
           this.okuriKana = ''
+          this.cursor = 0
         }
 
         // 候補ウィンドウから選択されたものを確定
@@ -446,6 +470,8 @@ export class SKK {
       }
     }
 
+    const previousLength = (this.yomi + this.okuriKana + this.keys).length
+
     // 特殊キー以外なら未確定バッファに押されたキーを追加、かなモードでは大文字は小文字にする
     if (!ACCEPTABLE_SPECIAL_KEYS.includes(e.key) && !ignoreThisKey) {
       this.keys +=
@@ -458,6 +484,8 @@ export class SKK {
 
     // 打鍵を文字に変換
     this.keyToYomi()
+
+    const currentLength = (this.yomi + this.okuriKana + this.keys).length
 
     // Backspace の処理
     if (e.key === 'Backspace') {
@@ -487,6 +515,8 @@ export class SKK {
         this.mode = 'direct'
       }
     }
+
+    this.cursor = this.cursor + (currentLength - previousLength)
 
     // 表示処理
     await this.setStatusToIme()
@@ -538,8 +568,6 @@ export class SKK {
         }
 
         if (this.letters !== '' || this.yomi !== '') {
-          console.log('direct commit', this.letters, this.yomi)
-
           this.dispatchImeMethod('commitText', {
             text: this.letters + this.yomi,
           })
@@ -553,8 +581,6 @@ export class SKK {
 
       case 'conversion': {
         if (this.letters !== '') {
-          console.log('conversion commit', this.letters)
-
           this.dispatchImeMethod('commitText', { text: this.letters })
 
           this.letters = ''
@@ -567,7 +593,7 @@ export class SKK {
         } else {
           this.dispatchImeMethod('setComposition', {
             text: composition,
-            cursor: composition.length,
+            cursor: this.cursor + 1,
             properties: {
               selectionStart: 0,
               selectionEnd: composition.length,
