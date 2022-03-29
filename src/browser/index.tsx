@@ -210,7 +210,9 @@ export const App: React.VFC = () => {
         candidateWindowProperties={candidateWindowProperties}
         commit={commit}
         composition={composition}
+        compositionCursor={compositionCursor}
         ctrlKey={ctrlKey}
+        cursor={cursor}
         keyText={keyText}
         menuItems={menuItems}
         ready={ready}

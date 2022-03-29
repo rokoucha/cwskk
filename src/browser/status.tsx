@@ -10,7 +10,9 @@ export const Status: React.VFC<{
   candidateWindowProperties: CandidateWindowProperties
   commit: string
   composition: string
+  compositionCursor: number
   ctrlKey: boolean
+  cursor: number
   keyText: string
   menuItems: MenuItem[]
   ready: boolean
@@ -20,7 +22,9 @@ export const Status: React.VFC<{
   candidateWindowProperties,
   commit,
   composition,
+  compositionCursor,
   ctrlKey,
+  cursor,
   keyText,
   menuItems,
   ready,
@@ -43,11 +47,34 @@ export const Status: React.VFC<{
       </label>
       <label style={{ marginLeft: '0.5rem' }}>
         key
-        <input readOnly value={keyText} style={{ marginLeft: '0.2rem' }} />
+        <input
+          readOnly
+          value={keyText === ' ' ? 'Space' : keyText}
+          size={8}
+          style={{ marginLeft: '0.2rem' }}
+        />
+      </label>
+      <label style={{ marginLeft: '0.5rem' }}>
+        cursor position
+        <input
+          readOnly
+          value={cursor}
+          size={2}
+          style={{ marginLeft: '0.2rem' }}
+        />
       </label>
       <label style={{ marginLeft: '0.5rem' }}>
         committed text
         <input readOnly value={commit} style={{ marginLeft: '0.2rem' }} />
+      </label>
+      <label style={{ marginLeft: '0.5rem' }}>
+        composition cursor position
+        <input
+          readOnly
+          value={compositionCursor}
+          size={2}
+          style={{ marginLeft: '0.2rem' }}
+        />
       </label>
       <label style={{ marginLeft: '0.5rem' }}>
         composition text
