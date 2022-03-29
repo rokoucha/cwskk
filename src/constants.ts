@@ -5,6 +5,7 @@ export const ACCEPTABLE_SPECIAL_KEYS = [
   'ArrowLeft',
   'ArrowRight',
   'Backspace',
+  'Delete',
   'Enter',
 ]
 

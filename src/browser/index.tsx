@@ -155,8 +155,16 @@ export const App: React.VFC = () => {
         case 'Backspace': {
           e.preventDefault()
 
-          setCommit((prev) => prev.slice(0, -1))
-          setCursor((prev) => prev - 1)
+          setCommit((prev) => prev.slice(0, cursor - 1) + prev.slice(cursor))
+          setCursor((prev) => (0 < prev ? prev - 1 : 0))
+
+          break
+        }
+
+        case 'Delete': {
+          e.preventDefault()
+
+          setCommit((prev) => prev.slice(0, cursor) + prev.slice(cursor + 1))
 
           break
         }
@@ -178,7 +186,7 @@ export const App: React.VFC = () => {
         }
       }
     },
-    [skk],
+    [commit, cursor, skk],
   )
 
   useEffect(() => {

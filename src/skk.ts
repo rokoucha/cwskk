@@ -227,7 +227,7 @@ export class SKK {
    *
    * @returns true: IME(SKK) で処理, false: システムで処理
    */
-  public async onKeyEvent(e: KeyboardEvent) {
+  public async onKeyEvent(e: KeyboardEvent): Promise<boolean> {
     if (e.type !== 'keydown') {
       return false
     }
@@ -303,6 +303,11 @@ export class SKK {
             this.okuriKana = ''
             this.cursor = 0
           }
+        }
+
+        // 直接モードでは処理しないキー
+        if (['Enter', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+          return false
         }
 
         break
@@ -504,6 +509,48 @@ export class SKK {
       }
 
       // 候補をクリア
+      this.entries = []
+
+      // 変換バッファが全て空になったら変換モードから離脱
+      if (
+        this.keys.length === 0 &&
+        this.okuri.length === 0 &&
+        this.yomi.length === 0
+      ) {
+        this.mode = 'direct'
+      }
+    }
+
+    // Delete の処理
+    if (e.key === 'Delete') {
+      // 未確定文字→確定文字の順に文字を削除、こちら側のバッファが全て空ならシステム側で消してもらう
+      // 打鍵
+      if (
+        (this.yomi + this.okuri).length <= this.cursor &&
+        this.cursor < (this.yomi + this.okuri + this.keys).length
+      ) {
+        const cursor = this.cursor - (this.yomi + this.okuri).length
+        this.keys = this.keys.slice(0, cursor) + this.keys.slice(cursor + 1)
+      }
+      // 送り
+      else if (
+        this.yomi.length <= this.cursor &&
+        this.cursor < (this.yomi + this.okuri).length
+      ) {
+        const cursor = this.cursor - this.yomi.length
+        this.okuri = this.okuri.slice(0, cursor) + this.okuri.slice(cursor + 1)
+        this.okuriKana =
+          this.okuriKana.slice(0, cursor) + this.okuriKana.slice(cursor + 1)
+      } // 読み
+      else if (0 <= this.cursor && this.cursor < this.yomi.length) {
+        const cursor = this.cursor
+        this.yomi = this.yomi.slice(0, cursor) + this.yomi.slice(cursor + 1)
+      } else {
+        return false
+      }
+
+      // 候補をクリア
+      // TODO: 選択中の候補を辞書から削除するか尋ねる
       this.entries = []
 
       // 変換バッファが全て空になったら変換モードから離脱
