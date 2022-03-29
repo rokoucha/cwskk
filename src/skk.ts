@@ -495,15 +495,30 @@ export class SKK {
     // Backspace の処理
     if (e.key === 'Backspace') {
       // 未確定文字→確定文字の順に文字を削除、こちら側のバッファが全て空ならシステム側で消してもらう
-      if (this.keys.length > 0) {
-        this.keys = this.keys.slice(0, -1)
-      } else if (this.okuri.length > 0) {
-        this.okuri = ''
-        this.okuriKana = ''
-      } else if (this.yomi.length > 0) {
-        this.yomi = this.yomi.slice(0, -1)
-      } else if (this.letters.length > 0) {
-        this.letters = this.letters.slice(0, -1)
+      // 打鍵
+      if (
+        (this.yomi + this.okuri).length < this.cursor &&
+        this.cursor <= (this.yomi + this.okuri + this.keys).length
+      ) {
+        const cursor = this.cursor - (this.yomi + this.okuri).length
+        this.keys = this.keys.slice(0, cursor - 1) + this.keys.slice(cursor)
+        this.cursor -= 1
+      }
+      // 送り
+      else if (
+        this.yomi.length < this.cursor &&
+        this.cursor <= (this.yomi + this.okuri).length
+      ) {
+        const cursor = this.cursor - this.yomi.length
+        this.okuri = this.okuri.slice(0, cursor - 1) + this.okuri.slice(cursor)
+        this.okuriKana =
+          this.okuriKana.slice(0, cursor) + this.okuriKana.slice(cursor + 1)
+        this.cursor -= 1
+      } // 読み
+      else if (0 < this.cursor && this.cursor <= this.yomi.length) {
+        const cursor = this.cursor
+        this.yomi = this.yomi.slice(0, cursor - 1) + this.yomi.slice(cursor)
+        this.cursor -= 1
       } else {
         return false
       }
