@@ -46,14 +46,16 @@ export const Textbox: React.VFC<{
       }}
     >
       <span>
-        {commits.map((t) =>
+        {commits.map((t, i) =>
           t !== true ? (
             t
           ) : compositions.length === 0 ? (
-            <Cursor />
+            <Cursor key="cursor" />
           ) : (
-            <span>
-              {compositions.map((c) => (c !== true ? c : <Cursor />))}
+            <span key={i}>
+              {compositions.map((c) =>
+                c !== true ? c : <Cursor key="compositionCursor" />,
+              )}
             </span>
           ),
         )}
