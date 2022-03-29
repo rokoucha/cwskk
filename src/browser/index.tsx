@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { SKK, SKKIMEEvent, SKKIMEEventHandler, SKKIMEEvents } from '../skk'
+import { SKK, SKKIMEEventHandler } from '../skk'
 import type {
   CandidateTemplate,
   CandidateWindowProperties,
   MenuItem,
 } from '../types'
+import { slice } from '../utils/string'
 import { Status } from './status'
 import { Textbox } from './textbox'
 
@@ -38,7 +39,7 @@ export const App: React.VFC = () => {
 
   const commitTextHandler: SKKIMEEventHandler<'commitText'> = useCallback(
     ({ detail: { text } }) => {
-      setCommit((prev) => prev.slice(0, cursor) + text + prev.slice(cursor))
+      setCommit((prev) => slice(prev, 0, cursor) + text + slice(prev, cursor))
       setCursor((prev) => prev + text.length)
     },
     [cursor],
@@ -155,7 +156,7 @@ export const App: React.VFC = () => {
         case 'Backspace': {
           e.preventDefault()
 
-          setCommit((prev) => prev.slice(0, cursor - 1) + prev.slice(cursor))
+          setCommit((prev) => slice(prev, 0, cursor - 1) + slice(prev, cursor))
           setCursor((prev) => (0 < prev ? prev - 1 : 0))
 
           break
@@ -164,7 +165,7 @@ export const App: React.VFC = () => {
         case 'Delete': {
           e.preventDefault()
 
-          setCommit((prev) => prev.slice(0, cursor) + prev.slice(cursor + 1))
+          setCommit((prev) => slice(prev, 0, cursor) + slice(prev, cursor + 1))
 
           break
         }
