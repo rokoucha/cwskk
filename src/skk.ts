@@ -15,6 +15,7 @@ import type {
   LetterMode,
   MenuItem,
 } from './types'
+import runes from 'runes'
 
 class CustomNamedEvent<K, T> extends Event {
   readonly detail: T
@@ -372,12 +373,13 @@ export class SKK {
 
           this.keyToYomi(true)
 
+          const yomi = this.kanaToKana(this.letterMode, 'hiragana', this.yomi)
+
           this.okuriKana = this.okuri !== '' ? this.yomi.slice(-1) : ''
 
           this.entries =
             this.dict.get(
-              (this.okuri !== '' ? this.yomi.slice(0, -1) : this.yomi) +
-                this.okuri,
+              (this.okuri !== '' ? yomi.slice(0, -1) : yomi) + this.okuri,
             ) ?? []
 
           if (this.entries.length === 0) {
@@ -399,39 +401,14 @@ export class SKK {
 
           this.keyToYomi(true)
 
-          switch (this.letterMode) {
-            case 'hiragana': {
-              this.letters = [...this.yomi]
-                .map((yomi) => {
-                  const rule = this.table.kana.rule.find(
-                    ([_key, [hira, _kata]]) => hira === yomi,
-                  )
-                  return rule ? rule[1][1] : ''
-                })
-                .join('')
-
-              break
-            }
-
-            case 'katakana': {
-              this.letters = [...this.yomi]
-                .map((yomi) => {
-                  const rule = this.table.kana.rule.find(
-                    ([_key, [_hira, kata]]) => kata === yomi,
-                  )
-                  return rule ? rule[1][0] : ''
-                })
-                .join('')
-
-              break
-            }
-
-            case 'halfkana': {
-              this.letters = this.yomi
-
-              break
-            }
-          }
+          this.letters =
+            this.letterMode === 'hiragana' || this.letterMode === 'katakana'
+              ? this.kanaToKana(
+                  this.letterMode,
+                  this.letterMode === 'hiragana' ? 'katakana' : 'hiragana',
+                  this.yomi,
+                )
+              : this.yomi
 
           this.keys = ''
           this.yomi = ''
@@ -792,16 +769,22 @@ export class SKK {
   }
 
   /**
-   * 現在の入力モードから文字を選択
+   * 入力モードから文字を選択
    *
+   * @param mode 入力モード
    * @param hiragana ひらがなでの文字
    * @param katakana カタカナでの文字
    * @param halfkana 半角ｶﾀｶﾅでの文字
    *
    * @returns 現在の入力モードに紐づく文字
    */
-  private getKana(hiragana: string, katakana: string, halfkana: string) {
-    switch (this.letterMode) {
+  private getKana(
+    mode: LetterMode,
+    hiragana: string,
+    katakana: string,
+    halfkana: string,
+  ) {
+    switch (mode) {
       case 'hiragana':
         return hiragana
       case 'katakana':
@@ -853,7 +836,7 @@ export class SKK {
     if (matchable && yomi && matchable[0] === yomi[0]) {
       const [_key, [hira, kata, han, flag]] = yomi
 
-      this.yomi += this.getKana(hira, kata, han)
+      this.yomi += this.getKana(this.letterMode, hira, kata, han)
 
       // leave-last な仮名なら最後のローマ字を残す
       this.keys = flag === 'leave-last' ? this.keys.slice(-1) : ''
@@ -866,7 +849,7 @@ export class SKK {
       if (forceComitYomi) {
         const [_key, [hira, kata, han, _flag]] = forceComitYomi
 
-        this.yomi += this.getKana(hira, kata, han)
+        this.yomi += this.getKana(this.letterMode, hira, kata, han)
       }
 
       // もう確定するので leave-last は無視
@@ -889,7 +872,7 @@ export class SKK {
         if (lookNext) {
           const [_key, [hira, kata, han, _flag]] = lookNext
 
-          this.yomi += this.getKana(hira, kata, han)
+          this.yomi += this.getKana(this.letterMode, hira, kata, han)
         }
 
         // 余計な文字が前に入ったローマ字を変換
@@ -897,7 +880,7 @@ export class SKK {
         if (gleanings) {
           const [_key, [hira, kata, han, flag]] = gleanings
 
-          this.yomi += this.getKana(hira, kata, han)
+          this.yomi += this.getKana(this.letterMode, hira, kata, han)
 
           // leave-last な仮名なら最後のローマ字を残す
           this.keys = flag === 'leave-last' ? this.keys.slice(-1) : ''
@@ -907,5 +890,29 @@ export class SKK {
         willmatch = rule.some(([key]) => key.startsWith(this.keys))
       } while (!willmatch && this.keys.length > 0)
     }
+  }
+
+  /**
+   * かなを別のかなに変換
+   *
+   * @param from 現在の入力モード
+   * @param to 変換先の入力モード
+   * @param text 変換する文字列
+   * @returns 変換後の文字列
+   */
+  private kanaToKana(from: LetterMode, to: LetterMode, text: string): string {
+    const characters = runes(text)
+
+    return characters
+      .map((yomi) => {
+        const rule = this.table.kana.rule.find(
+          ([_key, [hira, kata, han]]) =>
+            this.getKana(from, hira, kata, han) === yomi,
+        )
+        const [_key, [hira, kata, han]] = rule ?? ['', ['', '', '']]
+
+        return this.getKana(to, hira, kata, han)
+      })
+      .join('')
   }
 }
