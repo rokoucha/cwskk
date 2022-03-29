@@ -255,6 +255,7 @@ export class SKK {
 
     // 各モードごとの処理
     switch (this.mode) {
+      // 直接入力
       case 'direct': {
         // かなモードの処理
         if (
@@ -306,14 +307,30 @@ export class SKK {
         }
 
         // 直接モードでは処理しないキー
-        if (['Enter', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        if (['Enter', 'ArrowLeft', 'ArrowRight', 'Escape'].includes(e.key)) {
           return false
         }
 
         break
       }
 
+      // 変換処理中
       case 'conversion': {
+        // キャンセル
+        if (e.key === 'Escape' || (e.key === 'g' && e.ctrlKey)) {
+          this.mode = 'direct'
+
+          ignoreThisKey = true
+
+          this.letters = ''
+
+          this.keys = ''
+          this.yomi = ''
+          this.okuri = ''
+          this.okuriKana = ''
+          this.cursor = 0
+        }
+
         // 送り
         if (e.shiftKey && this.okuri === '' && this.yomi !== '') {
           this.okuri = e.key.toLowerCase()
@@ -426,7 +443,19 @@ export class SKK {
         break
       }
 
+      // 候補選択中
       case 'candidate-select': {
+        // キャンセル
+        if (e.key === 'Escape' || (e.key === 'g' && e.ctrlKey)) {
+          this.mode = 'conversion'
+
+          ignoreThisKey = true
+
+          this.candidates = []
+          this.entries = []
+          this.entriesIndex = -1
+        }
+
         // 次の候補へ
         if (e.key === ' ') {
           ignoreThisKey = true
@@ -439,7 +468,7 @@ export class SKK {
         }
 
         // 表示中の候補で変換を確定
-        if (this.candidates.length === 0 && e.key !== ' ') {
+        if (this.candidates.length === 0 && e.key !== ' ' && !ignoreThisKey) {
           // Shift が押されていたら変換モードにする
           this.mode = e.shiftKey ? 'conversion' : 'direct'
 

@@ -7,6 +7,7 @@ export const ACCEPTABLE_SPECIAL_KEYS = [
   'Backspace',
   'Delete',
   'Enter',
+  'Escape',
 ]
 
 /** 候補選択に使用するキー */
