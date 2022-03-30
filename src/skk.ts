@@ -258,6 +258,14 @@ export class SKK {
     switch (this.mode) {
       // 直接入力
       case 'direct': {
+        // 直接モードでは処理しないキー
+        if (
+          ['Enter', 'ArrowLeft', 'ArrowRight', 'Escape'].includes(e.key) ||
+          (e.ctrlKey && e.key === 'g')
+        ) {
+          return false
+        }
+
         // かなモードの処理
         if (
           this.letterMode === 'hiragana' ||
@@ -290,6 +298,8 @@ export class SKK {
           ) {
             this.keyToYomi(true)
 
+            this.cursor = 0
+
             this.mode = 'conversion'
           }
 
@@ -305,11 +315,6 @@ export class SKK {
             this.okuriKana = ''
             this.cursor = 0
           }
-        }
-
-        // 直接モードでは処理しないキー
-        if (['Enter', 'ArrowLeft', 'ArrowRight', 'Escape'].includes(e.key)) {
-          return false
         }
 
         break
@@ -642,6 +647,7 @@ export class SKK {
 
           this.yomi = ''
           this.letters = ''
+          this.cursor = 0
         }
 
         break
