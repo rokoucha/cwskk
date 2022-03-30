@@ -3,7 +3,7 @@ import type {
   CandidateTemplate,
   CandidateWindowProperties,
   MenuItem,
-} from '../types'
+} from '../../types'
 
 export const Status: React.VFC<{
   candidates: CandidateTemplate[]

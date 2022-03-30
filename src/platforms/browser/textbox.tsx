@@ -1,5 +1,5 @@
 import React from 'react'
-import { slice } from '../utils/string'
+import { slice } from '../../utils/string'
 
 const Cursor: React.VFC = () => (
   <span

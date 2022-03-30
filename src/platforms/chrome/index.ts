@@ -13,8 +13,8 @@ import {
   setMenuItems,
   updateMenuItems,
 } from './chromeInputIme'
-import type { SKK } from '../skk'
-import type { SKKContainer, SKKContainerConstructor } from '../types'
+import type { SKK } from '../../skk'
+import type { SKKContainer, SKKContainerConstructor } from '../../types'
 
 export const ChromeSKKContainer: SKKContainerConstructor = class ChromeSKKContainer
   implements SKKContainer

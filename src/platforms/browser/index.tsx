@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { SKK, SKKIMEEventHandler } from '../skk'
+import { SKK, SKKIMEEventHandler } from '../../skk'
 import type {
   CandidateTemplate,
   CandidateWindowProperties,
   MenuItem,
-} from '../types'
-import { slice } from '../utils/string'
+} from '../../types'
+import { slice } from '../../utils/string'
 import { Status } from './status'
 import { Textbox } from './textbox'
 
