@@ -1,4 +1,4 @@
-import { download, parse, type Entries, type Candidate } from './dictionary'
+import { DictionaryEngine, type Candidate } from './dictionary'
 import { ASCII_TABLE } from './rules/ascii'
 import { ROMAJI_TABLE } from './rules/romaji'
 import {
@@ -16,6 +16,8 @@ import type {
   MenuItem,
 } from './types'
 import runes from 'runes'
+import { UserJisyo } from './dictionary/providers/user'
+import { SKKJisyo } from './dictionary/providers/skk_jisyo'
 
 class CustomNamedEvent<K, T> extends Event {
   readonly detail: T
@@ -71,8 +73,8 @@ export class SKK {
   /** IME の機能を呼び出す為のハンドラリスト */
   private handlers: Handlers<SKKIMEEvents>
 
-  /** 辞書 */
-  private dict: Entries
+  /** 辞書エンジン */
+  private dictionary: DictionaryEngine
 
   /** 候補ウィンドウの表示内容 */
   private candidates: CandidateTemplate[]
@@ -124,7 +126,10 @@ export class SKK {
       updateMenuItems: new Set(),
     }
 
-    this.dict = new Map()
+    this.dictionary = new DictionaryEngine(new UserJisyo(), [
+      new SKKJisyo('SKK-JISYO.S'),
+    ])
+
     this.candidates = []
     this.entries = []
     this.entriesIndex = -1
@@ -205,9 +210,10 @@ export class SKK {
    * セットアップ
    */
   public async setup() {
-    await this.getDict()
     await this.setMenuItems()
     await this.updateMenuItem()
+
+    await this.dictionary.setup()
   }
 
   /**
@@ -216,7 +222,7 @@ export class SKK {
    * @param index
    */
   public async onCandidateSelected(index: number) {
-    await this.selectCandidate(index)
+    await this.selectCandidate(this.entriesIndex + index)
 
     await this.setStatusToIme()
   }
@@ -382,10 +388,9 @@ export class SKK {
 
           this.okuriKana = this.okuri !== '' ? this.yomi.slice(-1) : ''
 
-          this.entries =
-            this.dict.get(
-              (this.okuri !== '' ? yomi.slice(0, -1) : yomi) + this.okuri,
-            ) ?? []
+          this.entries = await this.dictionary.search(
+            (this.okuri !== '' ? yomi.slice(0, -1) : yomi) + this.okuri,
+          )
 
           if (this.entries.length === 0) {
             this.entries = []
@@ -451,21 +456,10 @@ export class SKK {
 
         // 表示中の候補で変換を確定
         if (this.candidates.length === 0 && e.key !== ' ' && !ignoreThisKey) {
+          await this.selectCandidate(this.entriesIndex)
+
           // Shift が押されていたら変換モードにする
           this.mode = e.shiftKey ? 'conversion' : 'direct'
-
-          this.letters =
-            (this.entries[this.entriesIndex].candidate ?? this.yomi) +
-            this.okuriKana
-
-          this.candidates = []
-          this.entries = []
-          this.entriesIndex = -1
-
-          this.yomi = ''
-          this.okuri = ''
-          this.okuriKana = ''
-          this.cursor = 0
         }
 
         // 候補ウィンドウから選択されたものを確定
@@ -474,12 +468,12 @@ export class SKK {
 
           ignoreThisKey = true
 
-          await this.selectCandidate(selected)
+          await this.selectCandidate(this.entriesIndex + selected)
         }
 
         // 選択肢以外のキーなので最初の候補で変換を確定
         else if (this.table.kana.convertible.includes(e.key.toLowerCase())) {
-          await this.selectCandidate(0)
+          await this.selectCandidate(this.entriesIndex)
         }
 
         break
@@ -620,7 +614,11 @@ export class SKK {
 
     // 表示する候補がなければ候補ウィンドウを隠す
     if (this.candidates.length === 0) {
-      this.dispatchImeMethod('setCandidateWindowProperties', { visible: true })
+      this.dispatchImeMethod('setCandidateWindowProperties', { visible: false })
+
+      this.dispatchImeMethod('setCandidates', {
+        candidates: this.candidates,
+      })
     }
 
     switch (this.mode) {
@@ -722,15 +720,6 @@ export class SKK {
   }
 
   /**
-   * 辞書を取得
-   */
-  private async getDict() {
-    this.dict = parse(
-      await download('https://skk-dev.github.io/dict/SKK-JISYO.S.gz', 'euc-jp'),
-    )
-  }
-
-  /**
    * メニューの内容を設定
    */
   private async setMenuItems() {
@@ -758,12 +747,15 @@ export class SKK {
    * @param index 候補の番号
    */
   private async selectCandidate(index: number) {
-    if (index < 0 || this.candidates.length <= index) return
+    if (index < 0 || this.entries.length < index) return
 
     this.mode = 'direct'
 
-    this.letters =
-      (this.candidates[index].candidate ?? this.yomi) + this.okuriKana
+    const { annotation, candidate } = this.entries[index]
+
+    await this.dictionary.add(this.yomi, candidate, annotation)
+
+    this.letters = candidate + this.okuriKana
 
     this.candidates = []
     this.entries = []
@@ -772,6 +764,7 @@ export class SKK {
     this.yomi = ''
     this.okuri = ''
     this.okuriKana = ''
+    this.cursor = 0
   }
 
   /**

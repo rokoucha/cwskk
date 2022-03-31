@@ -1,4 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { DictionaryEngine } from '../../dictionary'
+import { SKKJisyo } from '../../dictionary/providers/skk_jisyo'
+import { UserJisyo } from '../../dictionary/providers/user'
 import { SKK, SKKIMEEventHandler } from '../../skk'
 import type {
   CandidateTemplate,
