@@ -32,7 +32,7 @@ switch (mode) {
       await esbuild
         .serve(
           {
-            port: 8787,
+            port: 3000,
             servedir: './dist',
             onRequest({ method, path, remoteAddress, status, timeInMS }) {
               console.log(
@@ -42,7 +42,7 @@ switch (mode) {
           },
           { ...options },
         )
-        .then(() => console.log('Listening on http://localhost:8787'))
+        .then(() => console.log('Listening on http://localhost:3000'))
     }
     break
   case 'watch':
