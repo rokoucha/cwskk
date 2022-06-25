@@ -1,7 +1,7 @@
 import React from 'react'
 import { slice } from '../../utils/string'
 
-const Cursor: React.VFC = () => (
+const Cursor: React.FC = () => (
   <span
     style={{
       borderRight: '1px solid black',
@@ -9,7 +9,7 @@ const Cursor: React.VFC = () => (
   />
 )
 
-export const Textbox: React.VFC<{
+export const Textbox: React.FC<{
   commit: string
   composition: string
   compositionCursor: number

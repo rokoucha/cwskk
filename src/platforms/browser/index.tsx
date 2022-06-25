@@ -12,7 +12,7 @@ import { slice } from '../../utils/string'
 import { Status } from './status'
 import { Textbox } from './textbox'
 
-export const App: React.VFC = () => {
+export const App: React.FC = () => {
   const [ready, setReady] = useState(false)
 
   const [ctrlKey, setCtrlKey] = useState(false)

@@ -5,7 +5,7 @@ import type {
   MenuItem,
 } from '../../types'
 
-export const Status: React.VFC<{
+export const Status: React.FC<{
   candidates: CandidateTemplate[]
   candidateWindowProperties: CandidateWindowProperties
   commit: string
