@@ -2,13 +2,13 @@
   "name": "cwskk",
   "version": "1.0.0",
   "private": true,
-  "packageManager": "yarn@3.2.0",
+  "packageManager": "yarn@3.2.1",
   "devDependencies": {
-    "@types/chrome": "^0.0.178",
-    "@types/jest": "^27.4.0",
-    "@types/pako": "^1.0.3",
-    "@types/react": "^17.0.40",
-    "@types/react-dom": "^17.0.13",
+    "@types/chrome": "^0.0.190",
+    "@types/jest": "^28.1.3",
+    "@types/pako": "^2.0.0",
+    "@types/react": "^18.0.14",
+    "@types/react-dom": "^18.0.5",
     "@types/runes": "^0.4.1",
     "jest": "^28.1.1",
     "prettier": "^2.7.1",
@@ -16,7 +16,7 @@
     "typescript": "^4.7.4"
   },
   "dependencies": {
-    "@yarnpkg/esbuild-plugin-pnp": "^2.0.1",
+    "@yarnpkg/esbuild-plugin-pnp": "^3.0.0-rc.10",
     "esbuild": "^0.14.47",
     "pako": "^2.0.4",
     "react": "^18.2.0",
