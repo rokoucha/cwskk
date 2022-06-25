@@ -1,23 +1,23 @@
-import { DictionaryEngine, type Candidate } from './dictionary'
-import { ASCII_TABLE } from './rules/ascii'
-import { ROMAJI_TABLE } from './rules/romaji'
+import { DictionaryEngine, type Candidate } from '../dictionary'
+import { ASCII_TABLE } from '../rules/ascii'
+import { ROMAJI_TABLE } from '../rules/romaji'
 import {
   ACCEPTABLE_SPECIAL_KEYS,
   CANDIDATE_LABEL,
   CANDIDATE_PAGE_SIZE,
   CANDIDATE_WINDOW_OPEN_NUM,
   MENU_ITEMS,
-} from './constants'
+} from '../constants'
 import type {
   AsciiTable,
   CandidateTemplate,
   KanaTable,
   LetterMode,
   MenuItem,
-} from './types'
+} from '../types'
 import runes from 'runes'
-import { UserJisyo } from './dictionary/providers/user'
-import { SKKJisyo } from './dictionary/providers/skk_jisyo'
+import { UserJisyo } from '../dictionary/providers/user'
+import { SKKJisyo } from '../dictionary/providers/skk_jisyo'
 
 class CustomNamedEvent<K, T> extends Event {
   readonly detail: T
