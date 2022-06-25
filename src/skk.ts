@@ -234,11 +234,12 @@ export class SKK {
    *
    * @returns true: IME(SKK) で処理, false: システムで処理
    */
-  public async onKeyEvent(e: KeyboardEvent): Promise<boolean> {
-    if (e.type !== 'keydown') {
-      return false
-    }
-
+  public async onKeyEvent(e: {
+    altKey: boolean
+    ctrlKey: boolean
+    key: string
+    shiftKey: boolean
+  }): Promise<boolean> {
     if (e.key.charCodeAt(0) === 0xfffd) {
       return false
     }

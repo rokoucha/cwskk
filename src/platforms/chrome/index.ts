@@ -98,7 +98,13 @@ export const ChromeSKKContainer: SKKContainerConstructor = class ChromeSKKContai
     )
 
     onKeyEvent.addListener(async (_engineID, keyData) => {
-      await this.skk.onKeyEvent(keyData as KeyboardEvent)
+      if (keyData.type !== 'keydown') return
+      await this.skk.onKeyEvent({
+        altKey: keyData.altKey ?? false,
+        ctrlKey: keyData.ctrlKey ?? false,
+        key: keyData.key,
+        shiftKey: keyData.shiftKey ?? false,
+      })
     })
 
     onMenuItemActivated.addListener(async (_engineID, name) => {

@@ -142,14 +142,20 @@ export const App: React.FC = () => {
   const onKeyEvent = useCallback(
     async (e: KeyboardEvent) => {
       if (!skk) return
+      if (e.type !== 'keydown') return e.preventDefault()
 
       setCtrlKey(e.ctrlKey)
       setShiftKey(e.shiftKey)
       setKeyText(e.key)
 
-      let handled = await skk.onKeyEvent(e)
+      const handled = await skk.onKeyEvent({
+        altKey: e.altKey,
+        ctrlKey: e.ctrlKey,
+        key: e.key,
+        shiftKey: e.shiftKey,
+      })
 
-      if (handled || e.type !== 'keydown') {
+      if (handled) {
         e.preventDefault()
 
         return
