@@ -7,7 +7,7 @@ export function keyToYomi({
   letterMode,
   table,
 }: {
-  commit: boolean
+  commit?: boolean | undefined
   keys: string
   letterMode: LetterMode
   table: { ascii: AsciiTable; kana: KanaTable }
