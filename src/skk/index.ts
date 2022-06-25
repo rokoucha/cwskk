@@ -18,6 +18,8 @@ import type {
 import runes from 'runes'
 import { UserJisyo } from '../dictionary/providers/user'
 import { SKKJisyo } from '../dictionary/providers/skk_jisyo'
+import { keyToYomi } from './keyToYomi'
+import { getKana } from './getKana'
 
 class CustomNamedEvent<K, T> extends Event {
   readonly detail: T
@@ -777,127 +779,20 @@ export class SKK {
   }
 
   /**
-   * 入力モードから文字を選択
-   *
-   * @param mode 入力モード
-   * @param hiragana ひらがなでの文字
-   * @param katakana カタカナでの文字
-   * @param halfkana 半角ｶﾀｶﾅでの文字
-   *
-   * @returns 現在の入力モードに紐づく文字
-   */
-  #getKana(
-    mode: LetterMode,
-    hiragana: string,
-    katakana: string,
-    halfkana: string,
-  ) {
-    switch (mode) {
-      case 'hiragana':
-        return hiragana
-      case 'katakana':
-        return katakana
-      case 'halfkana':
-        return halfkana
-      default:
-        throw new Error('Called "getKana()" in ASCII input mode.')
-    }
-  }
-
-  /**
    * キーストロークをよみに変換
    *
    * @param commit 現時点の入力で打ち切りにしてよみを確定する
    */
   #keyToYomi(commit = false) {
-    // 英数モード
-    if (this.#letterMode === 'halfascii' || this.#letterMode === 'wideascii') {
-      const rule = this.#table.ascii.rule
+    const { keys, yomi } = keyToYomi({
+      commit,
+      keys: this.#keys,
+      letterMode: this.#letterMode,
+      table: this.#table,
+    })
 
-      const letters = rule.find(
-        ([key]) => this.#keys !== '' && key.startsWith(this.#keys),
-      )
-
-      if (letters) {
-        const [half, wide] = letters
-
-        this.#keys = ''
-
-        this.#yomi = this.#letterMode === 'halfascii' ? half : wide
-      }
-
-      return
-    }
-
-    // かなモード
-    const rule = this.#table.kana.rule
-
-    // 今後仮名になる可能性があるか?
-    const matchable = rule.find(
-      ([key]) => this.#keys !== '' && key.startsWith(this.#keys),
-    )
-
-    // 今のローマ字でマッチする読みの仮名
-    const yomi = rule.find(([key]) => key === this.#keys)
-
-    // 最短でマッチした仮名があるなら変換
-    if (matchable && yomi && matchable[0] === yomi[0]) {
-      const [_key, [hira, kata, han, flag]] = yomi
-
-      this.#yomi += this.#getKana(this.#letterMode, hira, kata, han)
-
-      // leave-last な仮名なら最後のローマ字を残す
-      this.#keys = flag === 'leave-last' ? this.#keys.slice(-1) : ''
-    }
-    // 確定する為に現時点で変換できる分を全て変換する
-    else if (matchable && commit) {
-      const forceComitYomi = rule.find(
-        ([key, [_hira, _kana, _han, _flag]]) => key === this.#keys,
-      )
-      if (forceComitYomi) {
-        const [_key, [hira, kata, han, _flag]] = forceComitYomi
-
-        this.#yomi += this.#getKana(this.#letterMode, hira, kata, han)
-      }
-
-      // もう確定するので leave-last は無視
-      this.#keys = ''
-    }
-    // 今後仮名にならないなら放棄
-    else if (!matchable) {
-      let prekana = ''
-      let willmatch = false
-
-      do {
-        prekana += this.#keys.slice(0, 1)
-        this.#keys = this.#keys.slice(1)
-
-        // 頭にいる look-next なローマ字を変換
-        const lookNext = rule.find(
-          ([key, [_hira, _kana, _han, flag]]) =>
-            key === prekana && flag === 'look-next',
-        )
-        if (lookNext) {
-          const [_key, [hira, kata, han, _flag]] = lookNext
-
-          this.#yomi += this.#getKana(this.#letterMode, hira, kata, han)
-        }
-
-        // 余計な文字が前に入ったローマ字を変換
-        const gleanings = rule.find(([key]) => key === this.#keys)
-        if (gleanings) {
-          const [_key, [hira, kata, han, flag]] = gleanings
-
-          this.#yomi += this.#getKana(this.#letterMode, hira, kata, han)
-
-          // leave-last な仮名なら最後のローマ字を残す
-          this.#keys = flag === 'leave-last' ? this.#keys.slice(-1) : ''
-        }
-
-        // 今後仮名になる可能性が生まれる状態までループ
-        willmatch = rule.some(([key]) => key.startsWith(this.#keys))
-      } while (!willmatch && this.#keys.length > 0)
-    }
+    this.#keys = keys
+    this.#yomi += yomi
   }
 
   /**
@@ -915,11 +810,11 @@ export class SKK {
       .map((yomi) => {
         const rule = this.#table.kana.rule.find(
           ([_key, [hira, kata, han]]) =>
-            this.#getKana(from, hira, kata, han) === yomi,
+            getKana(from, hira, kata, han) === yomi,
         )
         const [_key, [hira, kata, han]] = rule ?? ['', ['', '', '']]
 
-        return this.#getKana(to, hira, kata, han)
+        return getKana(to, hira, kata, han)
       })
       .join('')
   }

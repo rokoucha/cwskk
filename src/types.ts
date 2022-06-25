@@ -15,7 +15,7 @@ export type KanaRule = [
     | [string, string, string]
     | [string, string, string, 'leave-last' | 'look-next']
   ),
-][]
+]
 
 /**
  * かなの変換テーブル
@@ -25,7 +25,7 @@ export type KanaRule = [
  */
 export type KanaTable = {
   convertible: string[]
-  rule: KanaRule
+  rule: KanaRule[]
 }
 
 /**
@@ -33,7 +33,7 @@ export type KanaTable = {
  *
  * `[半角, 全角]`
  */
-export type AsciiRule = [string, string][]
+export type AsciiRule = [string, string]
 
 /**
  * 英数の変換テーブル
@@ -41,7 +41,7 @@ export type AsciiRule = [string, string][]
  * - `rule`: 変換ルール
  */
 export type AsciiTable = {
-  rule: AsciiRule
+  rule: AsciiRule[]
 }
 
 /** 入力モード */
