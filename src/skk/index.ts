@@ -105,7 +105,7 @@ export class SKK {
   /** 読み */
   #yomi: string
 
-  /** okuri(英字) */
+  /** 送り */
   #okuri: string
 
   /** 送り(かな) */
@@ -346,9 +346,39 @@ export class SKK {
           this.#cursor = 0
         }
 
-        // 送り
-        if (e.shiftKey && this.#okuri === '' && this.#yomi !== '') {
+        // 送り開始
+        if (
+          e.shiftKey &&
+          this.#okuri === '' &&
+          this.#okuriKana === '' &&
+          !ACCEPTABLE_SPECIAL_KEYS.includes(e.key) &&
+          this.#yomi !== ''
+        ) {
+          ignoreThisKey = true
+
           this.#okuri = e.key.toLowerCase()
+        }
+
+        // 送り継続
+        if (
+          this.#okuri !== '' &&
+          !ACCEPTABLE_SPECIAL_KEYS.includes(e.key) &&
+          !ignoreThisKey
+        ) {
+          ignoreThisKey = true
+
+          this.#okuri += e.key.toLowerCase()
+        }
+
+        // 送り変換
+        if (this.#okuri !== '') {
+          const { yomi } = keyToYomi({
+            keys: this.#okuri,
+            letterMode: this.#letterMode,
+            table: this.#table,
+          })
+
+          this.#okuriKana = yomi
         }
 
         // 変換を確定する
@@ -382,10 +412,19 @@ export class SKK {
         }
 
         // 変換候補を検索
-        if (e.key === ' ') {
+        if (e.key === ' ' || this.#okuriKana !== '') {
           ignoreThisKey = true
 
-          this.#keyToYomi(true)
+          if (this.#okuriKana === '') {
+            const { yomi } = keyToYomi({
+              commit: true,
+              keys: this.#keys,
+              letterMode: this.#letterMode,
+              table: this.#table,
+            })
+
+            this.#okuriKana = yomi
+          }
 
           const yomi = this.#kanaToKana(
             this.#letterMode,
@@ -393,10 +432,8 @@ export class SKK {
             this.#yomi,
           )
 
-          this.#okuriKana = this.#okuri !== '' ? this.#yomi.slice(-1) : ''
-
           this.#entries = await this.#dictionary.search(
-            (this.#okuri !== '' ? yomi.slice(0, -1) : yomi) + this.#okuri,
+            yomi + this.#okuri.slice(0, 1),
           )
 
           if (this.#entries.length === 0) {
@@ -502,7 +539,12 @@ export class SKK {
     // 打鍵を文字に変換
     this.#keyToYomi()
 
-    const currentLength = (this.#yomi + this.#okuriKana + this.#keys).length
+    const currentLength = (
+      this.#yomi +
+      this.#okuriKana +
+      this.#keys +
+      this.#okuri
+    ).length
 
     // Backspace の処理
     if (e.key === 'Backspace') {
@@ -669,7 +711,8 @@ export class SKK {
           this.#letters = ''
         }
 
-        const composition = '▽' + this.#yomi + this.#okuriKana + this.#keys
+        const composition =
+          '▽' + this.#yomi + this.#okuriKana + this.#keys + this.#okuri
 
         if (composition.length <= 1) {
           this.#dispatchImeMethod('clearComposition', undefined)
