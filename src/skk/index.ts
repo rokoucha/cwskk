@@ -760,7 +760,7 @@ export class SKK {
           })
         }
 
-        const composition = '▽' + yomiOrEntry + this.#okuriKana + this.#keys
+        const composition = '▼' + yomiOrEntry + this.#okuriKana + this.#keys
 
         this.#dispatchImeMethod('setComposition', {
           text: composition,
