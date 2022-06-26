@@ -1,6 +1,22 @@
-import type { AsciiTable, KanaTable, LetterMode } from '../types'
+import type {
+  AsciiRule,
+  AsciiTable,
+  KanaRule,
+  KanaTable,
+  LetterMode,
+} from '../types'
 import { getKana } from './getKana'
 
+/**
+ * 打鍵を読みに変換
+ *
+ * @param params.commit 現時点の入力で打ち切りにして読みを確定する
+ * @param params.keys 打鍵
+ * @param params.letterMode 入力モード
+ * @param params.table 変換テーブル
+ *
+ * @returns 読みと残りの打鍵
+ */
 export function keyToYomi({
   commit = false,
   keys,
@@ -12,23 +28,78 @@ export function keyToYomi({
   letterMode: LetterMode
   table: { ascii: AsciiTable; kana: KanaTable }
 }): { keys: string; yomi: string } {
-  // 英数モード
-  if (letterMode === 'halfascii' || letterMode === 'wideascii') {
-    const rule = table.ascii.rule
+  switch (letterMode) {
+    case 'halfascii':
+    case 'wideascii': {
+      const [half, wide] = keyToAscii({ keys, table: table.ascii }) ?? ['', '']
 
-    const letters = rule.find(([key]) => keys !== '' && key.startsWith(keys))
+      return {
+        keys: '',
+        yomi: letterMode === 'halfascii' ? half : wide,
+      }
+    }
 
-    if (letters) {
-      const [half, wide] = letters
+    case 'halfkana':
+    case 'hiragana':
+    case 'katakana': {
+      const {
+        keys: remaining,
+        yomi: [_key, [hira, kata, han]] = [, ['', '', '']],
+      } = keyToKana({
+        commit,
+        keys,
+        table: table.kana,
+      })
 
-      return { keys: '', yomi: letterMode === 'halfascii' ? half : wide }
-    } else {
-      return { keys, yomi: '' }
+      return {
+        keys: remaining,
+        yomi: getKana(letterMode, hira, kata, han),
+      }
     }
   }
+}
 
-  // かなモード
-  const rule = table.kana.rule
+/**
+ * 読みにマッチする英数変換ルールを検索
+ *
+ * @param params.keys 打鍵
+ * @param params.table 英数変換テーブル
+ *
+ * @returns マッチした英数変換ルール
+ */
+export function keyToAscii({
+  keys,
+  table,
+}: {
+  keys: string
+  table: AsciiTable
+}): AsciiRule | undefined {
+  const letters = table.rule.find(
+    ([key]) => keys !== '' && key.startsWith(keys),
+  )
+
+  return letters
+}
+
+/**
+ * 読みにマッチするかな変換ルールを検索
+ *
+ * @param params.commit 現時点の入力で打ち切りにして読みを確定する
+ * @param params.keys 打鍵
+ * @param params.table かな変換テーブル
+ *
+ * @returns マッチしたかな変換ルール
+ */
+export function keyToKana({
+  commit,
+  keys,
+  table,
+}: {
+  commit: boolean
+  keys: string
+  table: KanaTable
+}): { keys: string; yomi?: KanaRule | undefined } {
+  const rule = table.rule
 
   // 今後仮名になる可能性があるか?
   const matchable = rule.find(([key]) => keys !== '' && key.startsWith(keys))
@@ -38,12 +109,12 @@ export function keyToYomi({
 
   // 最短でマッチした仮名があるなら変換
   if (matchable && kana && matchable[0] === kana[0]) {
-    const [_key, [hira, kata, han, flag]] = kana
+    const [_key, [_hira, _kata, _han, flag]] = kana
 
     return {
       // leave-last な仮名なら最後のローマ字を残す
       keys: flag === 'leave-last' ? keys.slice(-1) : '',
-      yomi: getKana(letterMode, hira, kata, han),
+      yomi: kana,
     }
   }
 
@@ -53,20 +124,10 @@ export function keyToYomi({
       ([key, [_hira, _kana, _han, _flag]]) => key === keys,
     )
 
-    if (!forceComitYomi) {
-      return {
-        // もう確定するので leave-last は無視
-        keys: '',
-        yomi: '',
-      }
-    }
-
-    const [_key, [hira, kata, han, _flag]] = forceComitYomi
-
     return {
       // もう確定するので leave-last は無視
       keys: '',
-      yomi: getKana(letterMode, hira, kata, han),
+      yomi: forceComitYomi,
     }
   }
 
@@ -85,20 +146,22 @@ export function keyToYomi({
           key === prekana && flag === 'look-next',
       )
       if (lookNext) {
-        const [_key, [hira, kata, han, _flag]] = lookNext
-
-        return { keys, yomi: getKana(letterMode, hira, kata, han) }
+        return {
+          // 残りのローマ字を引き継ぐ
+          keys,
+          yomi: lookNext,
+        }
       }
 
       // 余計な文字が前に入ったローマ字を変換
       const gleanings = rule.find(([key]) => key === keys)
       if (gleanings) {
-        const [_key, [hira, kata, han, flag]] = gleanings
+        const [_key, [_hira, _kata, _han, flag]] = gleanings
 
         return {
           // leave-last な仮名なら最後のローマ字を残す
           keys: flag === 'leave-last' ? keys.slice(-1) : '',
-          yomi: getKana(letterMode, hira, kata, han),
+          yomi: gleanings,
         }
       }
 
@@ -107,5 +170,5 @@ export function keyToYomi({
     } while (!willmatch && keys.length > 0)
   }
 
-  return { keys, yomi: '' }
+  return { keys }
 }
