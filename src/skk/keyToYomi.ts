@@ -74,9 +74,7 @@ export function keyToAscii({
   keys: string
   table: AsciiTable
 }): AsciiRule | undefined {
-  const letters = table.rule.find(
-    ([key]) => keys !== '' && key.startsWith(keys),
-  )
+  const letters = table.rule.find(([key]) => key === keys)
 
   return letters
 }
@@ -101,19 +99,19 @@ export function keyToKana({
 }): { keys: string; yomi?: KanaRule | undefined } {
   const rule = table.rule
 
-  // 今後仮名になる可能性があるか?
+  // 今後かなになる可能性があるか?
   const matchable = rule.find(([key]) => keys !== '' && key.startsWith(keys))
 
-  // 今のローマ字でマッチする読みの仮名
+  // 今の打鍵でマッチするかな
   const kana = rule.find(([key]) => key === keys)
 
-  // 最短でマッチした仮名があるなら変換
+  // 最短でマッチしたかながあるなら変換
   if (matchable && kana && matchable[0] === kana[0]) {
     const [_key, [_hira, _kata, _han, flag]] = kana
 
     return {
-      // leave-last な仮名なら最後のローマ字を残す
-      keys: flag === 'leave-last' ? keys.slice(-1) : '',
+      // leave-last なかなで打ち切らないなら最後の打鍵を残す
+      keys: flag === 'leave-last' && !commit ? keys.slice(-1) : '',
       yomi: kana,
     }
   }

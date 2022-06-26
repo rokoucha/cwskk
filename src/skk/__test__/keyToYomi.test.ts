@@ -32,7 +32,7 @@ describe('keyToAscii', () => {
     expect(actual).toContain('a')
   })
 
-  test.skip('2文字以上はマッチしない', () => {
+  test('2文字以上はマッチしない', () => {
     const actual = keyToAscii({
       keys: 'backspace',
       table: ASCII_TABLE,
@@ -43,7 +43,7 @@ describe('keyToAscii', () => {
 })
 
 describe('keyToKana', () => {
-  test.skip('空文字は何にもマッチしない', () => {
+  test('空文字は何にもマッチしない', () => {
     const actual = keyToKana({
       commit: false,
       keys: '',
@@ -54,7 +54,7 @@ describe('keyToKana', () => {
     expect(actual.yomi).toBeUndefined()
   })
 
-  test.skip('何にもマッチしない', () => {
+  test('何にもマッチしない', () => {
     const actual = keyToKana({
       commit: false,
       keys: 'q',
@@ -208,7 +208,7 @@ describe('keyToKana', () => {
     expect(actual.yomi).toContainEqual(expect.arrayContaining(['ん']))
   })
 
-  test.skip('強制確定モードで leave-last にマッチ', () => {
+  test('強制確定モードで leave-last にマッチ', () => {
     const actual = keyToKana({
       commit: true,
       keys: 'mb',

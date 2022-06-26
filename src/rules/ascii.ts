@@ -134,6 +134,6 @@ export const ASCII_TABLE: AsciiTable = {
     ['}', '｝'],
     ['~', '～'],
 
-    ['', ''],
+    // ['', ''],
   ],
 }
