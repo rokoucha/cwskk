@@ -44,13 +44,14 @@ export type AsciiTable = {
   rule: AsciiRule[]
 }
 
+/** 英数入力モード */
+export type AsciiLetterMode = 'halfascii' | 'wideascii'
+
+/** かな入力モード */
+export type KanaLetterMode = 'hiragana' | 'katakana' | 'halfkana'
+
 /** 入力モード */
-export type LetterMode =
-  | 'halfascii'
-  | 'wideascii'
-  | 'hiragana'
-  | 'katakana'
-  | 'halfkana'
+export type LetterMode = AsciiLetterMode | KanaLetterMode
 
 /** 候補 */
 export type CandidateTemplate = {

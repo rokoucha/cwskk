@@ -15,11 +15,10 @@ import type {
   LetterMode,
   MenuItem,
 } from '../types'
-import runes from 'runes'
 import { UserJisyo } from '../dictionary/providers/user'
 import { SKKJisyo } from '../dictionary/providers/skk_jisyo'
 import { keyToYomi } from './keyToYomi'
-import { getKana } from './getKana'
+import { kanaToKana } from './kanaToKana'
 
 class CustomNamedEvent<K, T> extends Event {
   readonly detail: T
@@ -426,11 +425,11 @@ export class SKK {
             this.#okuriKana = yomi
           }
 
-          const yomi = this.#kanaToKana(
-            this.#letterMode,
-            'hiragana',
-            this.#yomi,
-          )
+          const yomi = kanaToKana({
+            table: this.#table.kana,
+            text: this.#yomi,
+            to: 'hiragana',
+          })
 
           this.#entries = await this.#dictionary.search(
             yomi + this.#okuri.slice(0, 1),
@@ -457,11 +456,11 @@ export class SKK {
 
           this.#letters =
             this.#letterMode === 'hiragana' || this.#letterMode === 'katakana'
-              ? this.#kanaToKana(
-                  this.#letterMode,
-                  this.#letterMode === 'hiragana' ? 'katakana' : 'hiragana',
-                  this.#yomi,
-                )
+              ? kanaToKana({
+                  table: this.#table.kana,
+                  text: this.#yomi,
+                  to: this.#letterMode === 'hiragana' ? 'katakana' : 'hiragana',
+                })
               : this.#yomi
 
           this.#keys = ''
@@ -836,29 +835,5 @@ export class SKK {
 
     this.#keys = keys
     this.#yomi += yomi
-  }
-
-  /**
-   * かなを別のかなに変換
-   *
-   * @param from 現在の入力モード
-   * @param to 変換先の入力モード
-   * @param text 変換する文字列
-   * @returns 変換後の文字列
-   */
-  #kanaToKana(from: LetterMode, to: LetterMode, text: string): string {
-    const characters = runes(text)
-
-    return characters
-      .map((yomi) => {
-        const rule = this.#table.kana.rule.find(
-          ([_key, [hira, kata, han]]) =>
-            getKana(from, hira, kata, han) === yomi,
-        )
-        const [_key, [hira, kata, han]] = rule ?? ['', ['', '', '']]
-
-        return getKana(to, hira, kata, han)
-      })
-      .join('')
   }
 }
