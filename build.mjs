@@ -1,4 +1,3 @@
-import { pnpPlugin } from '@yarnpkg/esbuild-plugin-pnp'
 import esbuild from 'esbuild'
 import { copyFile, mkdir, rm } from 'fs/promises'
 
@@ -13,11 +12,9 @@ const options = {
   minify: false,
   outdir: './dist',
   platform: 'browser',
-  plugins: [pnpPlugin()],
   sourcemap: true,
   target: 'es2021',
   treeShaking: true,
-  watch: false,
 }
 
 await rm('./dist', { recursive: true, force: true })
@@ -43,11 +40,6 @@ switch (mode) {
           { ...options },
         )
         .then(() => console.log('Listening on http://localhost:3000'))
-    }
-    break
-  case 'watch':
-    {
-      await esbuild.build({ ...options, watch: true })
     }
     break
 
