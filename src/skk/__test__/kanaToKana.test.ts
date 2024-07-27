@@ -1,3 +1,4 @@
+import { describe, expect, test } from 'vitest'
 import { ROMAJI_TABLE } from '../../rules/romaji'
 import { kanaToKana } from '../kanaToKana'
 
