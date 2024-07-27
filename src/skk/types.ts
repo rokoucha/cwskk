@@ -1,4 +1,4 @@
-import type { SKK } from './skk'
+import type { SKK } from '.'
 
 /**
  * かなの変換ルール

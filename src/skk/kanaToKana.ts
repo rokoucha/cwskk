@@ -1,6 +1,6 @@
 import runes from 'runes'
-import type { KanaLetterMode, KanaTable } from '../types'
 import { getKana } from './getKana'
+import type { KanaLetterMode, KanaTable } from './types'
 
 /**
  * かなを別のかなに変換

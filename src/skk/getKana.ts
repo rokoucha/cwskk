@@ -1,4 +1,4 @@
-import type { LetterMode } from '../types'
+import type { LetterMode } from './types'
 
 /**
  * 現在の入力モードから適切なかなを返す

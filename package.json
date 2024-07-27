@@ -3,26 +3,29 @@
   "version": "1.0.0",
   "private": true,
   "packageManager": "pnpm@9.6.0+sha512.38dc6fba8dba35b39340b9700112c2fe1e12f10b17134715a4aa98ccf7bb035e76fd981cf0bb384dfa98f8d6af5481c2bef2f4266a24bfa20c34eb7147ce0b5e",
+  "type": "module",
   "devDependencies": {
     "@types/chrome": "^0.0.269",
     "@types/pako": "^2.0.3",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@types/runes": "^0.4.3",
+    "@vitejs/plugin-react": "^4.3.1",
     "prettier": "^3.3.3",
     "typescript": "^5.5.4",
+    "vite": "^5.3.5",
     "vitest": "^2.0.4"
   },
   "dependencies": {
-    "esbuild": "^0.23.0",
     "pako": "^2.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "runes": "^0.4.3"
   },
   "scripts": {
-    "build": "node ./build.mjs",
-    "serve": "node ./build.mjs serve",
-    "test": "vitest"
+    "build": "TARGET=chrome vite build",
+    "dev": "TARGET=preview vite",
+    "test": "vitest",
+    "type-check": "tsc --noEmit"
   }
 }

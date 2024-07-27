@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { ROMAJI_TABLE } from '../../rules/romaji'
 import { kanaToKana } from '../kanaToKana'
+import { ROMAJI_TABLE } from '../rules/romaji'
 
 describe('kanaToKana', () => {
   test('to halfkana', () => {

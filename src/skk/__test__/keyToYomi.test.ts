@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
-import { ASCII_TABLE } from '../../rules/ascii'
-import { ROMAJI_TABLE } from '../../rules/romaji'
 import { keyToAscii, keyToKana, keyToYomi } from '../keyToYomi'
+import { ASCII_TABLE } from '../rules/ascii'
+import { ROMAJI_TABLE } from '../rules/romaji'
 
 const table = { ascii: ASCII_TABLE, kana: ROMAJI_TABLE }
 

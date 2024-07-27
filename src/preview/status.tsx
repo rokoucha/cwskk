@@ -3,7 +3,7 @@ import type {
   CandidateTemplate,
   CandidateWindowProperties,
   MenuItem,
-} from '../../types'
+} from '../skk/types'
 
 export const Status: React.FC<{
   candidates: CandidateTemplate[]

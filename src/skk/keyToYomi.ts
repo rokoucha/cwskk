@@ -1,11 +1,11 @@
+import { getKana } from './getKana'
 import type {
   AsciiRule,
   AsciiTable,
   KanaRule,
   KanaTable,
   LetterMode,
-} from '../types'
-import { getKana } from './getKana'
+} from './types'
 
 /**
  * 打鍵を読みに変換

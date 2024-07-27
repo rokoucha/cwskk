@@ -1,3 +1,5 @@
+import type { SKK } from '../skk'
+import type { SKKContainer, SKKContainerConstructor } from '../skk/types'
 import {
   clearComposition,
   commitText,
@@ -13,8 +15,6 @@ import {
   setMenuItems,
   updateMenuItems,
 } from './chromeInputIme'
-import type { SKK } from '../../skk'
-import type { SKKContainer, SKKContainerConstructor } from '../../types'
 
 export const ChromeSKKContainer: SKKContainerConstructor = class ChromeSKKContainer
   implements SKKContainer

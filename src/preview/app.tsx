@@ -1,15 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { DictionaryEngine } from '../../dictionary'
-import { SKKJisyo } from '../../dictionary/providers/skk_jisyo'
-import { UserJisyo } from '../../dictionary/providers/user'
-import { SKK, SKKIMEEventHandler } from '../../skk'
+import { SKK, SKKIMEEventHandler } from '../skk'
 import type {
   CandidateTemplate,
   CandidateWindowProperties,
   MenuItem,
-} from '../../types'
-import { slice } from '../../utils/string'
+} from '../skk/types'
 import { Status } from './status'
+import { slice } from './string'
 import { Textbox } from './textbox'
 
 export const App: React.FC = () => {
