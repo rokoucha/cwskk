@@ -26,7 +26,7 @@
     "build:chrome": "TARGET=chrome vite build",
     "build:preview": "TARGET=preview vite build",
     "dev": "TARGET=preview vite",
-    "test": "vitest",
+    "test": "TARGET=preview vitest",
     "type-check": "tsc --noEmit"
   }
 }
