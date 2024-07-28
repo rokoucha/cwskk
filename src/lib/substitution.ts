@@ -1,9 +1,8 @@
-export type SubstitutionMode =
-  | 'hiragana'
-  | 'katakana'
-  | 'halfkana'
-  | 'halfascii'
-  | 'wideascii'
+export type SubstitutionAsciiMode = 'halfascii' | 'wideascii'
+
+export type SubstitutionKanaMode = 'hiragana' | 'katakana' | 'halfkana'
+
+export type SubstitutionMode = SubstitutionAsciiMode | SubstitutionKanaMode
 
 /**
  * かなの変換ルール
@@ -37,37 +36,9 @@ export type AsciiRule = {
 }
 
 /**
- * 替字テーブル
- */
-export type SubstitutionTable = {
-  kana: KanaRule[]
-  ascii: AsciiRule[]
-}
-
-/**
- * 打鍵を読みに変換する
- */
-export function keysToYomi(
-  rules: SubstitutionTable,
-  mode: SubstitutionMode,
-  keys: string,
-  commit: boolean,
-): { keys: string; yomi: string } {
-  switch (mode) {
-    case 'hiragana':
-    case 'katakana':
-    case 'halfkana':
-      return keysToKana(rules.kana, mode, keys, commit)
-    case 'halfascii':
-    case 'wideascii':
-      return keysToAscii(rules.ascii, mode, keys)
-  }
-}
-
-/**
  * 打鍵をかなに替字する
  */
-function keysToKana(
+export function keysToKana(
   rules: KanaRule[],
   mode: 'hiragana' | 'katakana' | 'halfkana',
   keys: string,
@@ -136,11 +107,11 @@ function keysToKana(
 /**
  * 打鍵を英数に替字する
  */
-function keysToAscii(
+export function keysToAscii(
   rules: AsciiRule[],
   mode: 'halfascii' | 'wideascii',
   keys: string,
-): { keys: string; yomi: string } {
+): string {
   const yomis: string[] = []
 
   for (const key of keys) {
@@ -156,8 +127,5 @@ function keysToAscii(
     yomis.push(mode === 'halfascii' ? rule.values.half : rule.values.wide)
   }
 
-  return {
-    keys: '', // 英数なら全ての打鍵が替字されるので残余は出ない
-    yomi: yomis.join(''),
-  }
+  return yomis.join('')
 }
